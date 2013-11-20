@@ -6,6 +6,9 @@
     Adds Role-based Access Control module to application.
 
 """
+from flask import request
+
+
 class RBACRoleMixinModel(object):
     '''
     This mixin class provides implementations for the methods of Role model
@@ -44,6 +47,13 @@ class RBACUserMixinModel(object):
         return self.roles
 
 
+class PermissionDeny(Exception):
+    def __init__(self, message="", **kwargs):
+        super(PermissionDenied, self).__init__(message)
+        self.kwargs = kwargs
+        self.kwargs['message'] = message
+
+
 class AccessControl(object):
     '''
     This class record data for access controling.
@@ -71,6 +81,9 @@ class AccessControl(object):
         assert role in self._roles
         assert resource in self._resources
         self._denied[role, resource, method] = assertion
+
+    def is_allowed(self, role, resource, method):
+        pass
 
 
 class _RBACState(object):
@@ -149,6 +162,12 @@ class RBAC(object):
         '''Set user loader, which is used to load current user'''
         self._user_loader = loader
 
+    def resource_decorator(self):
+        def decorator(f):
+            self.ac.add_resource(f)
+            return f
+        return decorator
+
     def _authenticate(self):
         '''Authenticate permission'''
         assert self.app, "Please initialize your application into Flask-RBAC."
@@ -160,3 +179,9 @@ class RBAC(object):
         assert (type(current_user) == self._user_model,
                 "%s is not an instance of %s" %
                 (current_user, self._user_model.__class__))
+
+        endpoint = request.endpoint
+        method = request.method
+        resource = self.app.view_functions.get(endpoint, None)
+        if not resource:
+            raise PermissionDeny('Permission Denied!')
