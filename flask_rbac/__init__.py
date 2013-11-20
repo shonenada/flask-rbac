@@ -6,26 +6,35 @@
     Adds Role-based Access Control module to application.
 
 """
-class RBACRoleMixin(object):
+class RBACRoleMixinModel(object):
     '''
     This mixin class provides implementations for the methods of Role model
     needed by Flask-RBAC.
     '''
-    @staticmethod
-    def get_roles(self):
-        '''A static method return a list of all roles'''
-        return self.query.all()
-
     def get_name(self):
         '''Return the name of this role'''
         return self.name
 
     def get_parents(self):
-        '''Return parents of this role'''
-        return self.parents
+        '''Iterate parents of this role'''
+        for parent in self.parents:
+            yield parent
+
+    def get_family(self):
+        '''Return family of this role'''
+        for parent in self.parents:
+            if parent.parents:
+                parent.get_parents()
+            yield parent
+        yield self
+
+    @staticmethod
+    def get_roles():
+        '''Iterate all roles'''
+        yield None
 
 
-class RBACUserMixin(object):
+class RBACUserMixinModel(object):
     '''
     This mixin class provides implementations for the methods of User model
     needed by Flask-RBAC.
@@ -40,12 +49,29 @@ class AccessControl(object):
     This class record data for access controling.
     '''
     def __init__(self):
-        self._resource = {}
+        self._roles = set()
+        self._resources = set()
         self._allowed = {}
         self._denied = {}
 
+    def add_role(self, role):
+        self._roles.update(role)
+
+    def add_resource(self, resource):
+        self._resources.update(resource)
+
     def allow(self, role, resource, method, assertion=None):
-        pass
+        '''Add a allowing rule.'''
+        assert role in self._roles
+        assert resource in self._resources
+        self._allowed[role, resource, method] = assertion
+
+    def deny(self, role, resource, method, assertion=None):
+        '''Add a denying rule.'''
+        assert role in self._roles
+        assert resource in self._resources
+        self._denied[role, resource, method] = assertion
+
 
 class _RBACState(object):
     '''Records configuration for Flask-RBAC'''
@@ -74,6 +100,7 @@ class RBAC(object):
     https://github.com/mitsuhiko/flask-sqlalchemy/blob/master/flask_sqlalchemy/__init__.py#L592
     '''
     def __init__(self, app=None, **kwargs):
+        self.ac = AccessControl()
         self._role_model = kwargs.get('role_model', None)
         self._user_model = kwargs.get('user_model', None)
         self._user_loader = kwargs.get('user_loader', None)
@@ -106,6 +133,8 @@ class RBAC(object):
                 raise NotImplementedError("%s didn't implement %s method!" %
                                           model.__class__, method)
         self._role_model = model
+        for role in self._role_model.get_roles():
+            self.ac.add_role(role=role, parents=role.parents)
 
     def set_user_model(model):
         '''Set custom model of User.'''
@@ -126,7 +155,7 @@ class RBAC(object):
         assert self._role_model, "Please set role model before authenticate."
         assert self._user_model, "Please set user model before authenticate."
         assert self._user_loader, "Please set user loader before authenticate."
-        
+
         current_user = self._user_loader()
         assert (type(current_user) == self._user_model,
                 "%s is not an instance of %s" %
