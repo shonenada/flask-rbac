@@ -6,7 +6,9 @@
     Adds Role-based Access Control module to application.
 
 """
-from flask import request
+import itertools
+
+from flask import request, abort
 
 
 class RBACRoleMixinModel(object):
@@ -44,7 +46,8 @@ class RBACUserMixinModel(object):
     '''
     def get_roles(self):
         '''Return roles of this user'''
-        return self.roles
+        for role in self.roles:
+            role.get_family()
 
 
 class PermissionDeny(Exception):
@@ -54,15 +57,15 @@ class PermissionDeny(Exception):
         self.kwargs['message'] = message
 
 
-class AccessControl(object):
+class AccessControlList(object):
     '''
     This class record data for access controling.
     '''
     def __init__(self):
         self._roles = set()
         self._resources = set()
-        self._allowed = {}
-        self._denied = {}
+        self._allowed = []
+        self._denied = []
 
     def add_role(self, role):
         self._roles.update(role)
@@ -70,20 +73,27 @@ class AccessControl(object):
     def add_resource(self, resource):
         self._resources.update(resource)
 
-    def allow(self, role, resource, method, assertion=None):
+    def allow(self, role, method, resource):
         '''Add a allowing rule.'''
         assert role in self._roles
         assert resource in self._resources
-        self._allowed[role, resource, method] = assertion
+        permission = (role, method, resource)
+        if not permission in self._allowed:
+            self._allowed.append(permission)
 
-    def deny(self, role, resource, method, assertion=None):
+    def deny(self, role, method, resource):
         '''Add a denying rule.'''
         assert role in self._roles
         assert resource in self._resources
-        self._denied[role, resource, method] = assertion
+        permission = (role, method, resource)
+        if not permission in self._denied:
+            self._denied.append(permission)
 
-    def is_allowed(self, role, resource, method):
-        pass
+    def is_allowed(self, role, method, resource):
+        return (role, method, resource) in self._allowed
+
+    def is_denied(self, role, method, resource):
+        return (role, metho, resourced) in self._denied
 
 
 class _RBACState(object):
@@ -113,7 +123,7 @@ class RBAC(object):
     https://github.com/mitsuhiko/flask-sqlalchemy/blob/master/flask_sqlalchemy/__init__.py#L592
     '''
     def __init__(self, app=None, **kwargs):
-        self.ac = AccessControl()
+        self.acl = AccessControlList()
         self._role_model = kwargs.get('role_model', None)
         self._user_model = kwargs.get('user_model', None)
         self._user_loader = kwargs.get('user_loader', None)
@@ -136,7 +146,7 @@ class RBAC(object):
             app.extensions = {}
         app.extensions['rbac'] = _RBACState(self, app)
 
-        app.before_request(self._authenticate)
+        app.before_request(self.check_permission)
 
     def set_role_model(model):
         '''Set custom model of Role.'''
@@ -162,12 +172,6 @@ class RBAC(object):
         '''Set user loader, which is used to load current user'''
         self._user_loader = loader
 
-    def resource_decorator(self):
-        def decorator(f):
-            self.ac.add_resource(f)
-            return f
-        return decorator
-
     def _authenticate(self):
         '''Authenticate permission'''
         assert self.app, "Please initialize your application into Flask-RBAC."
@@ -181,7 +185,39 @@ class RBAC(object):
                 (current_user, self._user_model.__class__))
 
         endpoint = request.endpoint
-        method = request.method
         resource = self.app.view_functions.get(endpoint, None)
         if not resource:
-            raise PermissionDeny('Permission Denied!')
+            abort(404)
+
+        method = request.method
+
+        if check_permission(role, method, resource) == False:
+            abort(405)
+
+    def check_permission(self, role, method, resource):
+        roles = set(role.get_family())
+        methods = set([None, method])
+        is_allowed = None
+        for permission in itertools.product(roles, methods, resource):
+            if permission in self.acl._denied:
+                return False
+
+            if permission in self.acl._allowed:
+                is_allowed = True
+
+        return is_allowed
+
+    def has_permission(self, role, method, resource):
+        return (check_permission(role, method, resource) == True)
+
+    def check_perm(self, role, method):
+        def decorator(fview_func):
+            self.check_permission(role, method, view_func)
+            return view_func
+        return decorator
+
+    def resource_decorator(self):
+        def decorator(view_func):
+            self.acl.add_resource(view_func)
+            return view_func
+        return decorator
