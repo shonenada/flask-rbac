@@ -52,7 +52,7 @@ class RBACUserMixinModel(object):
 class EveryoneRole(RBACRoleMixinModel):
 
     def __init__(self):
-        self.name = 'Everyone'
+        self.name = 'everyone'
         self.parents = []
 
 
@@ -94,7 +94,7 @@ class AccessControlList(object):
         return (role, method, resource) in self._allowed
 
     def is_denied(self, role, method, resource):
-        return (role, metho, resourced) in self._denied
+        return (role, method, resourced) in self._denied
 
 
 class _RBACState(object):
@@ -196,7 +196,7 @@ class RBAC(object):
             roles = current_user.roles
 
         for role in roles:
-            if self.check_permission(role, method, resource) == False:
+            if not self.check_permission(role, method, resource):
                 abort(405)
 
     def check_permission(self, role, method, resource):
@@ -213,7 +213,6 @@ class RBAC(object):
             if permission in self.acl._allowed:
                 is_allowed = True
 
-        print is_allowed
         return is_allowed
 
     def has_permission(self, role, method, resource):
@@ -232,16 +231,16 @@ class RBAC(object):
             return view_func
         return decorator
 
-    def allow_decorator(self, role, method):
+    def allow(self, role, method):
         def decorator(view_func):
-            method.upper()
-            self.acl.allow(role, method, view_func)
+            _method = method.upper()
+            self.acl.allow(role, _method, view_func)
             return view_func
         return decorator
 
-    def deny_decorator(self, role, method):
+    def deny(self, role, method):
         def decorator(view_func):
-            method.upper()
-            self.acl.deny(role, method, view_func)
+            _method = method.upper()
+            self.acl.deny(role, _method, view_func)
             return view_func
         return decorator
