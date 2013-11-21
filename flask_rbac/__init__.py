@@ -148,7 +148,7 @@ class RBAC(object):
 
         app.before_request(self.check_permission)
 
-    def set_role_model(model):
+    def set_role_model(self, model):
         '''Set custom model of Role.'''
         needed_methods = ['get_roles', 'get_name', 'get_parents']
         for method in needed_methods:
@@ -159,7 +159,7 @@ class RBAC(object):
         for role in self._role_model.get_roles():
             self.ac.add_role(role=role, parents=role.parents)
 
-    def set_user_model(model):
+    def set_user_model(self, model):
         '''Set custom model of User.'''
         needed_methods = ['get_roles']
         for method in needed_methods:
@@ -168,7 +168,7 @@ class RBAC(object):
                                           model.__class__, method)
         self._user_model = model
 
-    def set_user_loader(loader):
+    def set_user_loader(self, loader):
         '''Set user loader, which is used to load current user'''
         self._user_loader = loader
 
