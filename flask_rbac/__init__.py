@@ -34,9 +34,8 @@ class RBACRoleMixinModel(object):
         yield self
 
     @staticmethod
-    def get_roles():
-        '''Iterate all roles'''
-        yield None
+    def get_by_name(name):
+        return everyone
 
 
 class RBACUserMixinModel(object):
@@ -48,6 +47,16 @@ class RBACUserMixinModel(object):
         '''Return roles of this user'''
         for role in self.roles:
             role.get_family()
+
+
+class EveryoneRole(RBACRoleMixinModel):
+
+    def __init__(self):
+        self.name = 'Everyone'
+        self.parents = []
+
+
+everyone = EveryoneRole()
 
 
 class PermissionDeny(Exception):
@@ -62,29 +71,21 @@ class AccessControlList(object):
     This class record data for access controling.
     '''
     def __init__(self):
-        self._roles = set()
-        self._resources = set()
         self._allowed = []
         self._denied = []
 
-    def add_role(self, role):
-        self._roles.update(role)
-
-    def add_resource(self, resource):
-        self._resources.update(resource)
-
     def allow(self, role, method, resource):
         '''Add a allowing rule.'''
-        assert role in self._roles
-        assert resource in self._resources
+        # assert role in self._roles
+        # assert resource in self._resources
         permission = (role, method, resource)
         if not permission in self._allowed:
             self._allowed.append(permission)
 
     def deny(self, role, method, resource):
         '''Add a denying rule.'''
-        assert role in self._roles
-        assert resource in self._resources
+        # assert role in self._roles
+        # assert resource in self._resources
         permission = (role, method, resource)
         if not permission in self._denied:
             self._denied.append(permission)
@@ -124,8 +125,8 @@ class RBAC(object):
     '''
     def __init__(self, app=None, **kwargs):
         self.acl = AccessControlList()
-        self._role_model = kwargs.get('role_model', None)
-        self._user_model = kwargs.get('user_model', None)
+        self._role_model = kwargs.get('role_model', RBACRoleMixinModel)
+        self._user_model = kwargs.get('user_model', RBACUserMixinModel)
         self._user_loader = kwargs.get('user_loader', None)
 
         if app is not None:
@@ -146,18 +147,16 @@ class RBAC(object):
             app.extensions = {}
         app.extensions['rbac'] = _RBACState(self, app)
 
-        app.before_request(self.check_permission)
+        app.before_request(self._authenticate)
 
     def set_role_model(self, model):
         '''Set custom model of Role.'''
-        needed_methods = ['get_roles', 'get_name', 'get_parents']
+        needed_methods = ['get_name', 'get_parents', 'get_by_name']
         for method in needed_methods:
             if not method in dir(model):
                 raise NotImplementedError("%s didn't implement %s method!" %
                                           model.__class__, method)
         self._role_model = model
-        for role in self._role_model.get_roles():
-            self.ac.add_role(role=role, parents=role.parents)
 
     def set_user_model(self, model):
         '''Set custom model of User.'''
@@ -191,33 +190,58 @@ class RBAC(object):
 
         method = request.method
 
-        if check_permission(role, method, resource) == False:
-            abort(405)
+        if not hasattr(current_user, 'roles'):
+            roles = [everyone]
+        else:
+            roles = current_user.roles
+
+        for role in roles:
+            if self.check_permission(role, method, resource) == False:
+                abort(405)
 
     def check_permission(self, role, method, resource):
         roles = set(role.get_family())
         methods = set([None, method])
+        resources = set([None, resource])
         is_allowed = None
-        for permission in itertools.product(roles, methods, resource):
+
+        for r, m, res in itertools.product(roles, methods, resources):
+            permission = (r.get_name(), m, res)
             if permission in self.acl._denied:
                 return False
 
             if permission in self.acl._allowed:
                 is_allowed = True
 
+        print is_allowed
         return is_allowed
 
     def has_permission(self, role, method, resource):
-        return (check_permission(role, method, resource) == True)
+        return bool(check_permission(role, method, resource) == True)
 
     def check_perm(self, role, method):
         def decorator(fview_func):
-            self.check_permission(role, method, view_func)
+            if not self.check_permission(role, method, view_func):
+                abort(405)
             return view_func
         return decorator
 
     def resource_decorator(self):
         def decorator(view_func):
             self.acl.add_resource(view_func)
+            return view_func
+        return decorator
+
+    def allow_decorator(self, role, method):
+        def decorator(view_func):
+            method.upper()
+            self.acl.allow(role, method, view_func)
+            return view_func
+        return decorator
+
+    def deny_decorator(self, role, method):
+        def decorator(view_func):
+            method.upper()
+            self.acl.deny(role, method, view_func)
             return view_func
         return decorator
