@@ -76,16 +76,12 @@ class AccessControlList(object):
 
     def allow(self, role, method, resource):
         '''Add a allowing rule.'''
-        # assert role in self._roles
-        # assert resource in self._resources
         permission = (role, method, resource)
         if not permission in self._allowed:
             self._allowed.append(permission)
 
     def deny(self, role, method, resource):
         '''Add a denying rule.'''
-        # assert role in self._roles
-        # assert resource in self._resources
         permission = (role, method, resource)
         if not permission in self._denied:
             self._denied.append(permission)
@@ -151,20 +147,10 @@ class RBAC(object):
 
     def set_role_model(self, model):
         '''Set custom model of Role.'''
-        needed_methods = ['get_name', 'get_parents', 'get_by_name']
-        for method in needed_methods:
-            if not method in dir(model):
-                raise NotImplementedError("%s didn't implement %s method!" %
-                                          model.__class__, method)
         self._role_model = model
 
     def set_user_model(self, model):
         '''Set custom model of User.'''
-        needed_methods = ['get_roles']
-        for method in needed_methods:
-            if not method in dir(model):
-                raise NotImplementedError("%s didn't implement %s method!" %
-                                          model.__class__, method)
         self._user_model = model
 
     def set_user_loader(self, loader):
@@ -196,7 +182,7 @@ class RBAC(object):
             roles = current_user.roles
 
         for role in roles:
-            if not self.check_permission(role, method, resource):
+            if self.check_permission(role, method, resource) == False:
                 abort(405)
 
     def check_permission(self, role, method, resource):
@@ -216,7 +202,7 @@ class RBAC(object):
         return is_allowed
 
     def has_permission(self, role, method, resource):
-        return bool(check_permission(role, method, resource) == True)
+        return check_permission(role, method, resource)
 
     def check_perm(self, role, method):
         def decorator(fview_func):
