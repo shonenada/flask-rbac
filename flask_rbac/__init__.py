@@ -185,16 +185,19 @@ class RBAC(object):
             roles = current_user.roles
 
         for role in roles:
-            if not self.check_permission(role, method, resource):
+            p = self._check_permission([role], method, resource)
+            if p == False:
                 abort(405)
 
-    def check_permission(self, role, method, resource):
-        roles = set(role.get_family())
-        methods = set([None, method])
-        resources = set([None, resource])
+    def _check_permission(self, roles, method, resource):
+        _roles = set()
+        _methods = set([None, method])
+        _resources = set([None, resource])
         is_allowed = None
+        for role in roles:
+            _roles.update(role.get_family())
 
-        for r, m, res in itertools.product(roles, methods, resources):
+        for r, m, res in itertools.product(_roles, _methods, _resources):
             permission = (r.get_name(), m, res)
             if permission in self.acl._denied:
                 return False
@@ -204,12 +207,14 @@ class RBAC(object):
 
         return is_allowed
 
-    def has_permission(self, role, method, resource):
-        return check_permission(role, method, resource)
+    def has_permission(self, method, endpoint):
+        current_user = self._user_loader()
+        view_func = self.app.view_functions[endpoint]
+        return self._check_permission(current_user.roles, method, view_func)
 
     def check_perm(self, role, method):
         def decorator(fview_func):
-            if not self.check_permission(role, method, view_func):
+            if not self._check_permission([role], method, view_func):
                 abort(405)
             return view_func
         return decorator
