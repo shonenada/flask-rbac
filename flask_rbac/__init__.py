@@ -143,6 +143,9 @@ class RBAC(object):
             app.extensions = {}
         app.extensions['rbac'] = _RBACState(self, app)
 
+        self.acl.allow(
+            everyone.get_name(), 'GET', app.view_functions['static'])
+
         app.before_request(self._authenticate)
 
     def set_role_model(self, model):
@@ -182,7 +185,7 @@ class RBAC(object):
             roles = current_user.roles
 
         for role in roles:
-            if self.check_permission(role, method, resource) == False:
+            if not self.check_permission(role, method, resource):
                 abort(405)
 
     def check_permission(self, role, method, resource):
