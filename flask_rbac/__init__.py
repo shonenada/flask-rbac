@@ -217,16 +217,18 @@ class RBAC(object):
             return view_func
         return decorator
 
-    def allow(self, role, method):
+    def allow(self, roles, method):
         def decorator(view_func):
             _method = method.upper()
-            self.acl.allow(role, _method, view_func)
+            for role in roles:
+                self.acl.allow(role, _method, view_func)
             return view_func
         return decorator
 
-    def deny(self, role, method):
+    def deny(self, roles, method):
         def decorator(view_func):
             _method = method.upper()
-            self.acl.deny(role, _method, view_func)
+            for role in roles:
+                self.acl.deny(role, _method, view_func)
             return view_func
         return decorator
