@@ -24,14 +24,14 @@ class RBACRoleMixinModel(object):
         '''Iterate parents of this role'''
         for parent in self.parents:
             yield parent
+            for grandparent in parent.get_parents():
+                yield grandparent
 
     def get_family(self):
         '''Return family of this role'''
-        for parent in self.parents:
-            if parent.parents:
-                parent.get_parents()
-            yield parent
         yield self
+        for parent in self.get_parents():
+            yield parent
 
     @staticmethod
     def get_by_name(name):
@@ -186,12 +186,12 @@ class RBAC(object):
 
         for role in roles:
             p = self._check_permission([role], method, resource)
-            if p == False:
+            if not p:
                 abort(405)
 
     def _check_permission(self, roles, method, resource):
         _roles = set()
-        _methods = set([None, method])
+        _methods = set(["*", method])
         _resources = set([None, resource])
         is_allowed = None
         for role in roles:
@@ -225,18 +225,18 @@ class RBAC(object):
             return view_func
         return decorator
 
-    def allow(self, roles, method):
+    def allow(self, roles, methods):
         def decorator(view_func):
-            _method = method.upper()
-            for role in roles:
-                self.acl.allow(role, _method, view_func)
+            _methods = [m.upper() for m in methods]
+            for r, m, v in itertools.product(roles, _methods, [view_func]):
+                self.acl.allow(r, m, v)
             return view_func
         return decorator
 
-    def deny(self, roles, method):
+    def deny(self, roles, methods):
         def decorator(view_func):
-            _method = method.upper()
-            for role in roles:
-                self.acl.deny(role, _method, view_func)
+            _methods = [m.upper() for m in methods]
+            for r, m, v in itertools.product(roles, _methods, [view_func]):
+                self.acl.deny(r, m, v)
             return view_func
         return decorator
