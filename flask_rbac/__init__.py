@@ -252,4 +252,3 @@ class RBAC(object):
             return self.permission_failed_hook()
         else:
             abort(403)
-+
