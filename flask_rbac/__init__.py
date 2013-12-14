@@ -178,8 +178,9 @@ class RBAC(object):
 
         endpoint = request.endpoint
         resource = self.app.view_functions.get(endpoint, None)
+
         if not resource:
-            self._not_allow_hook()
+            abort(404)
 
         method = request.method
 
@@ -194,6 +195,7 @@ class RBAC(object):
                 self._not_allow_hook()
 
     def _check_permission(self, roles, method, resource):
+
         _roles = set()
         _methods = set(["*", method])
         _resources = set([None, resource])
@@ -249,4 +251,5 @@ class RBAC(object):
         if self.permission_failed_hook:
             return self.permission_failed_hook()
         else:
-            abort(405)
+            abort(403)
++
