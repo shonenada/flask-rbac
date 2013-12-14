@@ -124,6 +124,7 @@ class RBAC(object):
         self._role_model = kwargs.get('role_model', RBACRoleMixinModel)
         self._user_model = kwargs.get('user_model', RBACUserMixinModel)
         self._user_loader = kwargs.get('user_loader', None)
+        self.permission_failed_hook = kwargs.get('permission_failed_hook')
 
         if app is not None:
             self.init_app(app)
@@ -160,6 +161,9 @@ class RBAC(object):
         '''Set user loader, which is used to load current user'''
         self._user_loader = loader
 
+    def set_hook(self, hook):
+        self.permission_failed_hook = hook
+
     def _authenticate(self):
         '''Authenticate permission'''
         assert self.app, "Please initialize your application into Flask-RBAC."
@@ -175,7 +179,7 @@ class RBAC(object):
         endpoint = request.endpoint
         resource = self.app.view_functions.get(endpoint, None)
         if not resource:
-            abort(404)
+            self._not_allow_hook()
 
         method = request.method
 
@@ -187,7 +191,7 @@ class RBAC(object):
         for role in roles:
             p = self._check_permission([role], method, resource)
             if not p:
-                abort(405)
+                self._not_allow_hook()
 
     def _check_permission(self, roles, method, resource):
         _roles = set()
@@ -215,7 +219,7 @@ class RBAC(object):
     def check_perm(self, role, method):
         def decorator(fview_func):
             if not self._check_permission([role], method, view_func):
-                abort(405)
+                self._not_allow_hook()
             return view_func
         return decorator
 
@@ -240,3 +244,9 @@ class RBAC(object):
                 self.acl.deny(r, m, v)
             return view_func
         return decorator
+
+    def _not_allow_hook(self):
+        if self.permission_failed_hook:
+            return self.permission_failed_hook()
+        else:
+            abort(405)
