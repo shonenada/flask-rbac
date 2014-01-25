@@ -11,7 +11,6 @@ import itertools
 from flask import g
 
 from .model import RoleMixin, UserMixin
-from .exception import PermissionDeny
 
 
 __all__ = ['RBAC', 'RoleMixin', 'UserMixin']
