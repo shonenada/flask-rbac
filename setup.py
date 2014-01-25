@@ -7,7 +7,7 @@ setup(
     url='https://github.com/shonenada/flask-rbac',
     author='Yaoda Liu',
     author_email='shonenada@gmail.com',
-    decription='RBAC support for Flask',
+    description='RBAC support for Flask',
     zip_safe=False,
     packages=['flask_rbac'],
     include_package_data=True,
