@@ -3,11 +3,22 @@ from setuptools import setup
 
 setup(
     name='Flask-RBAC',
+    version='0.1.0',
+    url='https://github.com/shonenada/flask-rbac',
     author='Yaoda Liu',
     author_email='shonenada@gmail.com',
-    version='0.1.0',
+    decription='RBAC support for Flask',
     zip_safe=False,
-    url='https://github.com/shonenada/flask-rbac',
     packages=['flask_rbac'],
-    install_requires=['Flask>=0.10']
+    include_package_data=True,
+    platforms='any',
+    install_requires=['Flask>=0.10'],
+    classifiers=[
+        'Framework :: Flask',
+        'Environment :: Web Environment',
+        'Operating System :: OS Independent',
+        'Programming Language :: Python',
+        'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
+        'Topic :: Software Development :: Libraries :: Python Modules'
+    ]
 )
