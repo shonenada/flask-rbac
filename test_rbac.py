@@ -50,25 +50,25 @@ def makeapp(with_factory=False, use_white=False):
     rbac.set_role_model(Role)
 
     @app.route('/')
-    @rbac.allow(roles=[everyone], methods=['GET'])
+    @rbac.allow(roles=['everyone'], methods=['GET'])
     def index():
         return Response('index')
 
     @app.route('/a')
-    @rbac.allow(roles=[special], methods=['GET'])
+    @rbac.allow(roles=['special'], methods=['GET'])
     def a():
         return Response('Hello')
 
     @app.route('/b', methods=['GET', 'POST'])
-    @rbac.allow(roles=[local_user], methods=['GET'])
-    @rbac.allow(roles=[staff, special], methods=['POST'])
+    @rbac.allow(roles=['local_user'], methods=['GET'])
+    @rbac.allow(roles=['staff', 'special'], methods=['POST'])
     def b():
         return Response('Hello from /b')
 
     @app.route('/c')
-    @rbac.allow(roles=[everyone], methods=['GET'])
-    @rbac.deny(roles=[local_user], methods=['GET'], with_children=False)
-    @rbac.allow(roles=[staff], methods=['GET'])
+    @rbac.allow(roles=['everyone'], methods=['GET'])
+    @rbac.deny(roles=['local_user'], methods=['GET'], with_children=False)
+    @rbac.allow(roles=['staff'], methods=['GET'])
     def c():
         return Response('Hello from /c')
 
@@ -147,7 +147,7 @@ class UseWhiteApplicationUnitTests(unittest.TestCase):
 
     def test_has_permission(self):
         global current_user
-        
+
         current_user = anonymous
         self.assertTrue(self.rbac.has_permission('GET', 'index'))
         self.assertTrue(self.rbac.has_permission('GET', 'c'))
