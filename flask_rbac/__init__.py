@@ -24,15 +24,16 @@ class AccessControlList(object):
     def __init__(self):
         self._allowed = []
         self._denied = []
+        self.seted = False
 
     def allow(self, role, method, resource, with_children=True):
         '''Add allowing rules.'''
         if with_children:
             for r in role.get_children():
-                permission = (r, method, resource)
+                permission = (r.get_name(), method, resource)
                 if not permission in self._allowed:
                     self._allowed.append(permission)
-        permission = (role, method, resource)
+        permission = (role.get_name(), method, resource)
         if not permission in self._allowed:
             self._allowed.append(permission)
 
@@ -40,10 +41,10 @@ class AccessControlList(object):
         '''Add denying rules.'''
         if with_children:
             for r in role.get_children():
-                permission = (r, method, resource)
+                permission = (r.get_name(), method, resource)
                 if not permission in self._denied:
                     self._denied.append(permission)
-        permission = (role, method, resource)
+        permission = (role.get_name(), method, resource)
         if not permission in self._denied:
             self._denied.append(permission)
 
@@ -84,6 +85,7 @@ class RBAC(object):
     '''
     def __init__(self, app=None, **kwargs):
         self.acl = AccessControlList()
+        self.before_acl = {'allow': [], 'deny': []}
 
         self._role_model = kwargs.get('role_model', RoleMixin)
         self._user_model = kwargs.get('user_model', UserMixin)
@@ -111,6 +113,7 @@ class RBAC(object):
         app.extensions['rbac'] = _RBACState(self, app)
 
         self.acl.allow(anonymous, 'GET', app.view_functions['static'])
+        app.before_first_request(self._setup_acl)
 
         if app.config['RBAC_USE_WHITE']:
             app.before_request(self._authenticate)
@@ -133,8 +136,9 @@ class RBAC(object):
 
     def has_permission(self, method, endpoint, user=None):
         _user = user or self._user_loader()
+        roles = _user.get_roles()
         view_func = self.app.view_functions[endpoint]
-        return self._check_permission(_user.get_roles(), method, view_func)
+        return self._check_permission(roles, method, view_func)
 
     def check_perm(self, role, method, callback=None):
         def decorator(view_func):
@@ -154,7 +158,7 @@ class RBAC(object):
         def decorator(view_func):
             _methods = [m.upper() for m in methods]
             for r, m, v in itertools.product(roles, _methods, [view_func]):
-                self.acl.allow(r, m, v, with_children)
+                self.before_acl['allow'].append((r, m, v, with_children))
             return view_func
         return decorator
 
@@ -162,7 +166,7 @@ class RBAC(object):
         def decorator(view_func):
             _methods = [m.upper() for m in methods]
             for r, m, v in itertools.product(roles, _methods, [view_func]):
-                self.acl.deny(r, m, v, with_children)
+                self.before_acl['deny'].append((r, m, v, with_children))
             return view_func
         return decorator
 
@@ -196,6 +200,9 @@ class RBAC(object):
             return self._deny_hook()
 
     def _check_permission(self, roles, method, resource):
+        if not self.acl.seted:
+            self._setup_acl()
+
         _roles = set([anonymous])
         _methods = set(['*', method])
         _resources = set([None, resource])
@@ -204,13 +211,12 @@ class RBAC(object):
         _roles.update(roles)
 
         for r, m, res in itertools.product(_roles, _methods, _resources):
-            permission = (r, m, res)
+            permission = (r.get_name(), m, res)
             if permission in self.acl._denied:
                 return False
 
             if permission in self.acl._allowed:
                 is_allowed = True
-
         return is_allowed
 
     def _deny_hook(self):
@@ -218,3 +224,12 @@ class RBAC(object):
             return self.permission_failed_hook()
         else:
             abort(403)
+
+    def _setup_acl(self):
+        for rn, method, resource, with_children in self.before_acl['allow']:
+            role = self._role_model.get_by_name(rn)
+            self.acl.allow(role, method, resource, with_children)
+        for rn, method, resource, with_children in self.before_acl['deny']:
+            role = self._role_model.get_by_name(rn)
+            self.acl.deny(role, method, resource, with_children)
+        self.acl.seted = True

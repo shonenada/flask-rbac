@@ -4,10 +4,13 @@ class RoleMixin(object):
     needed by Flask-RBAC
     '''
 
+    roles = {}
+
     def __init__(self, name):
         self.name = name
         self.parents = set()
         self.children = set()
+        RoleMixin.roles[name] = self
 
     def get_name(self):
         '''Return the name of this role'''
@@ -34,6 +37,10 @@ class RoleMixin(object):
             yield child
             for grandchild in child.get_children():
                 yield grandchild
+
+    @staticmethod
+    def get_by_name(name):
+        return RoleMixin.roles[name]
 
 
 class UserMixin(object):
