@@ -1,96 +1,50 @@
-#-*- coding: utf-8 -*-
+#-*-coding: utf-8
 """
     flaskext.rbac
     ~~~~~~~~~~~~~
 
-    Adds Role-based Access Control module to application.
-
+    Adds Role-based Access Control modules to application
 """
+
 import itertools
 
-from flask import request, abort
+from flask import g
+
+from .model import RoleMixin, UserMixin
+from .exception import PermissionDeny
 
 
-class RBACRoleMixinModel(object):
-    '''
-    This mixin class provides implementations for the methods of Role model
-    needed by Flask-RBAC.
-    '''
-    def get_name(self):
-        '''Return the name of this role'''
-        return self.name
-
-    def get_parents(self):
-        '''Iterate parents of this role'''
-        for parent in self.parents:
-            yield parent
-            for grandparent in parent.get_parents():
-                yield grandparent
-
-    def get_family(self):
-        '''Return family of this role'''
-        yield self
-        for parent in self.get_parents():
-            yield parent
-
-    @staticmethod
-    def get_by_name(name):
-        return everyone
-
-
-class RBACUserMixinModel(object):
-    '''
-    This mixin class provides implementations for the methods of User model
-    needed by Flask-RBAC.
-    '''
-    def get_roles(self):
-        '''Return roles of this user'''
-        for role in self.roles:
-            role.get_family()
-
-
-class EveryoneRole(RBACRoleMixinModel):
-
-    def __init__(self):
-        self.name = 'everyone'
-        self.parents = []
-
-
-everyone = EveryoneRole()
-
-
-class PermissionDeny(Exception):
-    def __init__(self, message="", **kwargs):
-        super(PermissionDenied, self).__init__(message)
-        self.kwargs = kwargs
-        self.kwargs['message'] = message
+__all__ = ['RBAC', 'RoleMixin', 'UserMixin']
 
 
 class AccessControlList(object):
     '''
-    This class record data for access controling.
+    This class record rules for access controling.
     '''
+
     def __init__(self):
         self._allowed = []
         self._denied = []
 
-    def allow(self, role, method, resource):
+    def allow(self, role, action, resource):
         '''Add a allowing rule.'''
-        permission = (role, method, resource)
+        permission = (role, action, resource)
         if not permission in self._allowed:
             self._allowed.append(permission)
 
-    def deny(self, role, method, resource):
+    def deny(self, role, action, resource):
         '''Add a denying rule.'''
-        permission = (role, method, resource)
+        permission = (role, action, resource)
         if not permission in self._denied:
             self._denied.append(permission)
 
-    def is_allowed(self, role, method, resource):
-        return (role, method, resource) in self._allowed
+    def is_allowed(self, role, action, resource):
+        '''Check whether role is allowed to access resource'''
+        return (role, action, resource) in self._allowed
 
-    def is_denied(self, role, method, resource):
-        return (role, method, resourced) in self._denied
+    def is_denied(self, role, action, resource):
+        '''Check wherther role is denied to access resource'''
+        return (role, action, resource) in self._denied
 
 
 class _RBACState(object):
@@ -121,9 +75,10 @@ class RBAC(object):
     '''
     def __init__(self, app=None, **kwargs):
         self.acl = AccessControlList()
-        self._role_model = kwargs.get('role_model', RBACRoleMixinModel)
-        self._user_model = kwargs.get('user_model', RBACUserMixinModel)
-        self._user_loader = kwargs.get('user_loader', None)
+
+        self._role_model = kwargs.get('role_model', RoleMixin)
+        self._user_model = kwargs.get('user_model', UserMixin)
+        self._user_loader = kwargs.get('user_loader', g.current_user)
         self.permission_failed_hook = kwargs.get('permission_failed_hook')
 
         if app is not None:
@@ -140,21 +95,23 @@ class RBAC(object):
         '''
         self.app = app
 
+        app.config.setdefault('RBAC_USE_WHITE', False)
+
         if not hasattr(app, 'extensions'):
             app.extensions = {}
         app.extensions['rbac'] = _RBACState(self, app)
 
-        self.acl.allow(
-            everyone.get_name(), 'GET', app.view_functions['static'])
+        self.acl.allow("*", 'GET', app.view_functions['static'])
 
-        app.before_request(self._authenticate)
+        if app.config['RBAC_USE_WHITE']:
+            app.before_request(self._authenticate)
 
     def set_role_model(self, model):
-        '''Set custom model of Role.'''
+        '''Set custom model of Role'''
         self._role_model = model
 
     def set_user_model(self, model):
-        '''Set custom model of User.'''
+        '''Set custom model of User'''
         self._user_model = model
 
     def set_user_loader(self, loader):
@@ -162,7 +119,45 @@ class RBAC(object):
         self._user_loader = loader
 
     def set_hook(self, hook):
+        '''Set hook which call when permission is denied'''
         self.permission_failed_hook = hook
+
+    def has_permission(self, method, endpoint, user=None):
+        _user = user or self._user_loader()
+        view_func = self.app.view_functions[endpoint]
+        return self._check_permission(_user.roles, method, view_func)
+
+    def check_perm(self, role, method, callback=None):
+        def decorator(fview_func):
+            if not self._check_permission([role], method, view_func):
+                if callable(callback):
+                    callback()
+                else:
+                    self._not_allow_hook()
+            return view_func
+        return decorator
+
+    def user_loader(self):
+        def decorator(loader):
+            self._user_loader = loader
+            return loader
+        return decorator
+
+    def allow(self, roles, methods):
+        def decorator(view_func):
+            _methods = [m.upper() for m in methods]
+            for r, m, v in itertools.product(roles, _methods, [view_func]):
+                self.acl.allow(r, m, v)
+            return view_func
+        return decorator
+
+    def deny(self, roles, methods):
+        def decorator(view_func):
+            _methods = [m.upper() for m in methods]
+            for r, m, v in itertools.product(roles, _methods, [view_func]):
+                self.acl.deny(r, m, v)
+            return view_func
+        return decorator
 
     def _authenticate(self):
         '''Authenticate permission'''
@@ -195,8 +190,7 @@ class RBAC(object):
                 self._not_allow_hook()
 
     def _check_permission(self, roles, method, resource):
-
-        _roles = set()
+        _roles = set(["*"])
         _methods = set(["*", method])
         _resources = set([None, resource])
         is_allowed = None
@@ -212,40 +206,6 @@ class RBAC(object):
                 is_allowed = True
 
         return is_allowed
-
-    def has_permission(self, method, endpoint):
-        current_user = self._user_loader()
-        view_func = self.app.view_functions[endpoint]
-        return self._check_permission(current_user.roles, method, view_func)
-
-    def check_perm(self, role, method):
-        def decorator(fview_func):
-            if not self._check_permission([role], method, view_func):
-                self._not_allow_hook()
-            return view_func
-        return decorator
-
-    def resource_decorator(self):
-        def decorator(view_func):
-            self.acl.add_resource(view_func)
-            return view_func
-        return decorator
-
-    def allow(self, roles, methods):
-        def decorator(view_func):
-            _methods = [m.upper() for m in methods]
-            for r, m, v in itertools.product(roles, _methods, [view_func]):
-                self.acl.allow(r, m, v)
-            return view_func
-        return decorator
-
-    def deny(self, roles, methods):
-        def decorator(view_func):
-            _methods = [m.upper() for m in methods]
-            for r, m, v in itertools.product(roles, _methods, [view_func]):
-                self.acl.deny(r, m, v)
-            return view_func
-        return decorator
 
     def _not_allow_hook(self):
         if self.permission_failed_hook:
