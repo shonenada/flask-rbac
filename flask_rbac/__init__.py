@@ -25,35 +25,35 @@ class AccessControlList(object):
         self._allowed = []
         self._denied = []
 
-    def allow(self, role, action, resource, with_children=True):
+    def allow(self, role, method, resource, with_children=True):
         '''Add allowing rules.'''
         if with_children:
             for r in role.get_children():
-                permission = (r, action, resource)
+                permission = (r, method, resource)
                 if not permission in self._allowed:
                     self._allowed.append(permission)
-        permission = (role, action, resource)
+        permission = (role, method, resource)
         if not permission in self._allowed:
             self._allowed.append(permission)
 
-    def deny(self, role, action, resource, with_children=True):
+    def deny(self, role, method, resource, with_children=True):
         '''Add denying rules.'''
         if with_children:
             for r in role.get_children():
-                permission = (r, action, resource)
+                permission = (r, method, resource)
                 if not permission in self._denied:
                     self._denied.append(permission)
-        permission = (role, action, resource)
+        permission = (role, method, resource)
         if not permission in self._denied:
             self._denied.append(permission)
 
-    def is_allowed(self, role, action, resource):
+    def is_allowed(self, role, method, resource):
         '''Check whether role is allowed to access resource'''
-        return (role, action, resource) in self._allowed
+        return (role, method, resource) in self._allowed
 
-    def is_denied(self, role, action, resource):
+    def is_denied(self, role, method, resource):
         '''Check wherther role is denied to access resource'''
-        return (role, action, resource) in self._denied
+        return (role, method, resource) in self._denied
 
 
 class _RBACState(object):
@@ -134,15 +134,15 @@ class RBAC(object):
     def has_permission(self, method, endpoint, user=None):
         _user = user or self._user_loader()
         view_func = self.app.view_functions[endpoint]
-        return self._check_permission(_user.roles, method, view_func)
+        return self._check_permission(_user.get_roles(), method, view_func)
 
     def check_perm(self, role, method, callback=None):
-        def decorator(fview_func):
+        def decorator(view_func):
             if not self._check_permission([role], method, view_func):
                 if callable(callback):
                     callback()
                 else:
-                    self._not_allow_hook()
+                    self._deny_hook()
             return view_func
         return decorator
 
@@ -193,7 +193,7 @@ class RBAC(object):
 
         permit = self._check_permission(roles, method, resource)
         if not permit:
-            self._not_allow_hook()
+            return self._deny_hook()
 
     def _check_permission(self, roles, method, resource):
         _roles = set([anonymous])
@@ -213,7 +213,7 @@ class RBAC(object):
 
         return is_allowed
 
-    def _not_allow_hook(self):
+    def _deny_hook(self):
         if self.permission_failed_hook:
             return self.permission_failed_hook()
         else:
