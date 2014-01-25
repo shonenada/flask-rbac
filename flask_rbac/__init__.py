@@ -8,9 +8,9 @@
 
 import itertools
 
-from flask import g
+from flask import request, abort
 
-from .model import RoleMixin, UserMixin
+from .model import RoleMixin, UserMixin, anonymous
 
 
 __all__ = ['RBAC', 'RoleMixin', 'UserMixin']
@@ -25,14 +25,24 @@ class AccessControlList(object):
         self._allowed = []
         self._denied = []
 
-    def allow(self, role, action, resource):
-        '''Add a allowing rule.'''
+    def allow(self, role, action, resource, with_children=True):
+        '''Add allowing rules.'''
+        if with_children:
+            for r in role.get_children():
+                permission = (r, action, resource)
+                if not permission in self._allowed:
+                    self._allowed.append(permission)
         permission = (role, action, resource)
         if not permission in self._allowed:
             self._allowed.append(permission)
 
-    def deny(self, role, action, resource):
-        '''Add a denying rule.'''
+    def deny(self, role, action, resource, with_children=True):
+        '''Add denying rules.'''
+        if with_children:
+            for r in role.get_children():
+                permission = (r, action, resource)
+                if not permission in self._denied:
+                    self._denied.append(permission)
         permission = (role, action, resource)
         if not permission in self._denied:
             self._denied.append(permission)
@@ -77,7 +87,7 @@ class RBAC(object):
 
         self._role_model = kwargs.get('role_model', RoleMixin)
         self._user_model = kwargs.get('user_model', UserMixin)
-        self._user_loader = kwargs.get('user_loader', g.current_user)
+        self._user_loader = kwargs.get('user_loader', None)
         self.permission_failed_hook = kwargs.get('permission_failed_hook')
 
         if app is not None:
@@ -100,7 +110,7 @@ class RBAC(object):
             app.extensions = {}
         app.extensions['rbac'] = _RBACState(self, app)
 
-        self.acl.allow("*", 'GET', app.view_functions['static'])
+        self.acl.allow(anonymous, 'GET', app.view_functions['static'])
 
         if app.config['RBAC_USE_WHITE']:
             app.before_request(self._authenticate)
@@ -136,25 +146,23 @@ class RBAC(object):
             return view_func
         return decorator
 
-    def user_loader(self):
-        def decorator(loader):
-            self._user_loader = loader
-            return loader
-        return decorator
+    def user_loader(self, loader):
+        self._user_loader = loader
+        return loader
 
-    def allow(self, roles, methods):
+    def allow(self, roles, methods, with_children=True):
         def decorator(view_func):
             _methods = [m.upper() for m in methods]
             for r, m, v in itertools.product(roles, _methods, [view_func]):
-                self.acl.allow(r, m, v)
+                self.acl.allow(r, m, v, with_children)
             return view_func
         return decorator
 
-    def deny(self, roles, methods):
+    def deny(self, roles, methods, with_children=True):
         def decorator(view_func):
             _methods = [m.upper() for m in methods]
             for r, m, v in itertools.product(roles, _methods, [view_func]):
-                self.acl.deny(r, m, v)
+                self.acl.deny(r, m, v, with_children)
             return view_func
         return decorator
 
@@ -178,26 +186,25 @@ class RBAC(object):
 
         method = request.method
 
-        if not hasattr(current_user, 'roles'):
-            roles = [everyone]
+        if not hasattr(current_user, 'get_roles'):
+            roles = [anonymous]
         else:
-            roles = current_user.roles
+            roles = current_user.get_roles()
 
-        for role in roles:
-            p = self._check_permission([role], method, resource)
-            if not p:
-                self._not_allow_hook()
+        permit = self._check_permission(roles, method, resource)
+        if not permit:
+            self._not_allow_hook()
 
     def _check_permission(self, roles, method, resource):
-        _roles = set(["*"])
-        _methods = set(["*", method])
+        _roles = set([anonymous])
+        _methods = set(['*', method])
         _resources = set([None, resource])
+
         is_allowed = None
-        for role in roles:
-            _roles.update(role.get_family())
+        _roles.update(roles)
 
         for r, m, res in itertools.product(_roles, _methods, _resources):
-            permission = (r.get_name(), m, res)
+            permission = (r, m, res)
             if permission in self.acl._denied:
                 return False
 
