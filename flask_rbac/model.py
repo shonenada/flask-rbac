@@ -6,10 +6,12 @@ class RoleMixin(object):
 
     roles = {}
 
-    def __init__(self, name):
+    def __init__(self, name=None):
         self.name = name
-        self.parents = set()
-        self.children = set()
+        if not hasattr(self.__class__, 'parents'):
+            self.parents = set()
+        if not hasattr(self.__class__, 'children'):
+            self.children = set()
         RoleMixin.roles[name] = self
 
     def get_name(self):
@@ -63,4 +65,4 @@ class UserMixin(object):
             yield role
 
 
-anonymous = RoleMixin('*')
+anonymous = RoleMixin('anonymous')
