@@ -1,4 +1,0 @@
-flask-rbac
-==========
-
-Flask-RBAC
