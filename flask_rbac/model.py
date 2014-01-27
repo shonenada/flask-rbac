@@ -85,14 +85,15 @@ class UserMixin(object):
 
         :param role: Role to add.
         """
-        self.add_roles([role])
+        self.roles.add(role)
 
-    def add_roles(self, roles):
+    def add_roles(self, *roles):
         """Add roles to this user.
 
         :param roles: Roles to add.
         """
-        self.roles.update(roles)
+        for role in roles:
+            self.add_role(role)
 
     def get_roles(self):
         for role in self.roles:

@@ -119,8 +119,7 @@ class RBAC(object):
         self.acl.allow(anonymous, 'GET', app.view_functions['static'])
         app.before_first_request(self._setup_acl)
 
-        if app.config['RBAC_USE_WHITE']:
-            app.before_request(self._authenticate)
+        app.before_request(self._authenticate)
 
     def set_role_model(self, model):
         """Set custom model of role.
@@ -254,6 +253,8 @@ class RBAC(object):
         assert self._user_model, "Please set user model before authenticate."
         assert self._user_loader, "Please set user loader before authenticate."
 
+        use_white = self.app.config['RBAC_USE_WHITE']
+
         current_user = self._user_loader()
         assert (type(current_user) == self._user_model,
                 "%s is not an instance of %s" %
@@ -272,7 +273,11 @@ class RBAC(object):
         else:
             roles = current_user.get_roles()
 
-        permit = self._check_permission(roles, method, resource)
+        if use_white:
+            permit = (self._check_permission(roles, method, resource) == True)
+        else:
+            permit = (self._check_permission(roles, method, resource) != False)
+
         if not permit:
             return self._deny_hook()
 
