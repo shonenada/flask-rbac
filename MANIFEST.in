@@ -1,1 +1,7 @@
-include README.md
+include README.rst AUTHORS CHANGES LICENSE Makefile test_rbac.py
+recursive-include docs *.html *.css *.jpg *.png *.gif
+recursive-exclude docs *.pyc
+recursive-exclude docs *.pyo
+recursive-exclude ./ *.pyc
+recursive-exclude ./ *.pyo
+prune docs/_build
