@@ -37,7 +37,7 @@ class AccessControlList(object):
         if not permission in self._allowed:
             self._allowed.append(permission)
 
-    def deny(self, role, method, resource, with_children=True):
+    def deny(self, role, method, resource, with_children=False):
         '''Add denying rules.'''
         if with_children:
             for r in role.get_children():
@@ -111,6 +111,7 @@ class RBAC(object):
         self.app = app
 
         app.config.setdefault('RBAC_USE_WHITE', False)
+        self.use_white = self.app.config['RBAC_USE_WHITE']
 
         if not hasattr(app, 'extensions'):
             app.extensions = {}
@@ -222,7 +223,7 @@ class RBAC(object):
             return view_func
         return decorator
 
-    def deny(self, roles, methods, with_children=True):
+    def deny(self, roles, methods, with_children=False):
         """This is a decorator function.
 
         You can deny roles to access the view func with it.
@@ -253,8 +254,6 @@ class RBAC(object):
         assert self._user_model, "Please set user model before authenticate."
         assert self._user_loader, "Please set user loader before authenticate."
 
-        use_white = self.app.config['RBAC_USE_WHITE']
-
         current_user = self._user_loader()
         assert (type(current_user) == self._user_model,
                 "%s is not an instance of %s" %
@@ -273,10 +272,7 @@ class RBAC(object):
         else:
             roles = current_user.get_roles()
 
-        if use_white:
-            permit = (self._check_permission(roles, method, resource) == True)
-        else:
-            permit = (self._check_permission(roles, method, resource) != False)
+        permit = self._check_permission(roles, method, resource)
 
         if not permit:
             return self._deny_hook()
@@ -285,9 +281,12 @@ class RBAC(object):
         if not self.acl.seted:
             self._setup_acl()
 
-        _roles = set([anonymous])
+        _roles = set()
         _methods = set(['*', method])
         _resources = set([None, resource])
+
+        if self.use_white:
+            _roles.add(anonymous)
 
         is_allowed = None
         _roles.update(roles)
@@ -299,7 +298,13 @@ class RBAC(object):
 
             if permission in self.acl._allowed:
                 is_allowed = True
-        return is_allowed
+
+        if self.use_white:
+            permit = (is_allowed == True)
+        else:
+            permit = (is_allowed != False)
+
+        return permit
 
     def _deny_hook(self):
         if self.permission_failed_hook:
