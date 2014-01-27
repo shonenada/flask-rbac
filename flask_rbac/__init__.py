@@ -65,14 +65,13 @@ class _RBACState(object):
 
 
 class RBAC(object):
-    '''This class implements role-base access control module in flask.
-
-    There are two way to initialize Flask-RBAC:
+    """This class implements role-based access control module in Flask.
+    There are two way to initialize Flask-RBAC::
 
         app = Flask(__name__)
         rbac = RBAC(app)
 
-    or
+    or::
 
         rbac = RBAC
         def create_app():
@@ -80,10 +79,15 @@ class RBAC(object):
             rbac.init_app(app)
             return app
 
-    Difference between two ways see:
-    https://github.com/mitsuhiko/flask-sqlalchemy/blob/master/flask_sqlalchemy/__init__.py#L592
-    '''
+    :param app: the Flask object
+    :param role_model: custom role model
+    :param user_model: custom user model
+    :param user_loader: custom user loader, used to load current user
+    :param permission_failed_hook: called when permission denied.
+    """
+
     def __init__(self, app=None, **kwargs):
+        """Initialize with app."""
         self.acl = AccessControlList()
         self.before_acl = {'allow': [], 'deny': []}
 
@@ -98,12 +102,12 @@ class RBAC(object):
             self.app = None
 
     def init_app(self, app):
-        '''
-        Initialize application in Flask-RBAC.
-
+        """Initialize application in Flask-RBAC.
         Adds (RBAC, app) to flask extensions.
         Adds hook to authenticate permission before request.
-        '''
+
+        :param app: Flask object
+        """
         self.app = app
 
         app.config.setdefault('RBAC_USE_WHITE', False)
@@ -119,22 +123,58 @@ class RBAC(object):
             app.before_request(self._authenticate)
 
     def set_role_model(self, model):
-        '''Set custom model of Role'''
+        """Set custom model of role.
+
+        :param model: Model of role.
+        """
         self._role_model = model
 
     def set_user_model(self, model):
-        '''Set custom model of User'''
+        """Set custom model of User
+
+        :param model: Model of user
+        """
         self._user_model = model
 
     def set_user_loader(self, loader):
-        '''Set user loader, which is used to load current user'''
+        """Set user loader, which is used to load current user.
+        An example::
+
+            from flask.ext.login import current_user
+            rbac.set_user_loader(lambda: current_user)
+
+        :param loader: Current user function.
+        """
         self._user_loader = loader
 
     def set_hook(self, hook):
-        '''Set hook which call when permission is denied'''
+        """Set hook which called when permission is denied
+        If you haven't set any hook, Flask-RBAC will call::
+
+            abort(403)
+
+        :param hook: Hook function
+        """
         self.permission_failed_hook = hook
 
     def has_permission(self, method, endpoint, user=None):
+        """Return does the current user can access the resource.
+        Example::
+
+            @app.route('/some_url', methods=['GET', 'POST'])
+            @rbac.allow(['anonymous'], ['GET'])
+            def a_view_func():
+                return Response('Blah Blah...')
+
+        If you are not logged.
+
+        `rbac.has_permission('GET', 'a_view_func')` return True.
+        `rbac.has_permission('POST', 'a_view_func')` return False.
+
+        :param method: The method wait to check.
+        :param endpoint: The application endpoint.
+        :param user: user who you need to check. Current user by default.
+        """
         _user = user or self._user_loader()
         roles = _user.get_roles()
         view_func = self.app.view_functions[endpoint]
@@ -155,6 +195,27 @@ class RBAC(object):
         return loader
 
     def allow(self, roles, methods, with_children=True):
+        """This is a decorator function.
+
+        You can allow roles to access the view func with it.
+
+        An example::
+
+            @app.route('/website/setting', methods=['GET', 'POST'])
+            @rbac.allow(['administrator', 'super_user'], ['GET', 'POST'])
+            def website_setting():
+                return Response('Setting page.')
+
+        :param roles: List, each name of roles. Please note that,
+                      `anonymous` is refered to anonymous.
+                      If you add `anonymous` to the rule,
+                      everyone can access the resource,
+                      unless you deny other roles.
+        :param methods: List, each name of methods.
+                        methods is valid in ['GET', 'POST', 'PUT', 'DELETE']
+        :param with_children: Whether allow children of roles as well.
+                              True by default.
+        """
         def decorator(view_func):
             _methods = [m.upper() for m in methods]
             for r, m, v in itertools.product(roles, _methods, [view_func]):
@@ -163,6 +224,23 @@ class RBAC(object):
         return decorator
 
     def deny(self, roles, methods, with_children=True):
+        """This is a decorator function.
+
+        You can deny roles to access the view func with it.
+
+        An example::
+
+            @app.route('/article/post', methods=['GET', 'POST'])
+            @rbac.deny(['anonymous', 'unactivated_role'], ['GET', 'POST'])
+            def article_post():
+                return Response('post page.')
+
+        :param roles: List, each name of roles.
+        :param methods: List, each name of methods.
+                        methods is valid in ['GET', 'POST', 'PUT', 'DELETE']
+        :param with_children: Whether allow children of roles as well.
+                              True by default.
+        """
         def decorator(view_func):
             _methods = [m.upper() for m in methods]
             for r, m, v in itertools.product(roles, _methods, [view_func]):
@@ -171,7 +249,6 @@ class RBAC(object):
         return decorator
 
     def _authenticate(self):
-        '''Authenticate permission'''
         assert self.app, "Please initialize your application into Flask-RBAC."
         assert self._role_model, "Please set role model before authenticate."
         assert self._user_model, "Please set user model before authenticate."
