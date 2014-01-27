@@ -1,2 +1,5 @@
+Change Logs
+===========
+
 .. include:: ../CHANGES
-   :start-line: 2
+   :start-line: 4

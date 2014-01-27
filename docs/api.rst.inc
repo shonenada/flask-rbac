@@ -1,5 +1,3 @@
-.. _api:
-
 Flask.ext.rbac.RBAC
 --------------
 
