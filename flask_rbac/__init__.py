@@ -17,17 +17,25 @@ __all__ = ['RBAC', 'RoleMixin', 'UserMixin']
 
 
 class AccessControlList(object):
-    '''
+    """
     This class record rules for access controling.
-    '''
+    """
 
     def __init__(self):
         self._allowed = []
         self._denied = []
+        self._exempt = []
         self.seted = False
 
     def allow(self, role, method, resource, with_children=True):
-        '''Add allowing rules.'''
+        """Add allowing rules.
+
+        :param role: Role of this rule.
+        :param method: Method to allow in rule, include GET, POST, PUT etc.
+        :param resource: Resource also view function.
+        :param with_children: Allow role's children in rule as well
+                              if with_children is `True`
+        """
         if with_children:
             for r in role.get_children():
                 permission = (r.get_name(), method, resource)
@@ -38,7 +46,14 @@ class AccessControlList(object):
             self._allowed.append(permission)
 
     def deny(self, role, method, resource, with_children=False):
-        '''Add denying rules.'''
+        """Add denying rules.
+
+        :param role: Role of this rule.
+        :param method: Method to deny in rule, include GET, POST, PUT etc.
+        :param resource: Resource also view function.
+        :param with_children: Deny role's children in rule as well
+                              if with_children is `True`
+        """
         if with_children:
             for r in role.get_children():
                 permission = (r.get_name(), method, resource)
@@ -48,13 +63,38 @@ class AccessControlList(object):
         if not permission in self._denied:
             self._denied.append(permission)
 
+    def exempt(self, view_func):
+        """Exempt a view function from being checked permission
+
+        :param view_func: The view function exempt from checking.
+        """
+        if not view_func in self._exempt:
+            self._exempt.append(view_func)
+
     def is_allowed(self, role, method, resource):
-        '''Check whether role is allowed to access resource'''
+        """Check whether role is allowed to access resource
+
+        :param role: Role to be checked.
+        :param method: Method to be checked.
+        :param resource: View function to be checked.
+        """
         return (role, method, resource) in self._allowed
 
     def is_denied(self, role, method, resource):
-        '''Check wherther role is denied to access resource'''
+        """Check wherther role is denied to access resource
+
+        :param role: Role to be checked.
+        :param method: Method to be checked.
+        :param resource: View function to be checked.
+        """
         return (role, method, resource) in self._denied
+
+    def is_exempt(self, view_func):
+        """Return whether view_func is exempted.
+
+        :param view_func: View function to be checked.
+        """
+        return view_func in self._exempt
 
 
 class _RBACState(object):
@@ -248,6 +288,12 @@ class RBAC(object):
             return view_func
         return decorator
 
+    def exempt(self, view_func):
+        """Exempt a view function from being checked permission
+        """
+        self.acl.exempt(view_func)
+        return view_func
+
     def _authenticate(self):
         assert self.app, "Please initialize your application into Flask-RBAC."
         assert self._role_model, "Please set role model before authenticate."
@@ -278,6 +324,9 @@ class RBAC(object):
             return self._deny_hook()
 
     def _check_permission(self, roles, method, resource):
+        if self.acl.is_exempt(resource):
+            return True
+
         if not self.acl.seted:
             self._setup_acl()
 
@@ -292,11 +341,10 @@ class RBAC(object):
         _roles.update(roles)
 
         for r, m, res in itertools.product(_roles, _methods, _resources):
-            permission = (r.get_name(), m, res)
-            if permission in self.acl._denied:
+            if self.acl.is_denied(r.get_name(), m, res):
                 return False
 
-            if permission in self.acl._allowed:
+            if self.acl.is_allowed(r.get_name(), m, res):
                 is_allowed = True
 
         if self.use_white:
