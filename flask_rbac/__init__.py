@@ -289,7 +289,17 @@ class RBAC(object):
         return decorator
 
     def exempt(self, view_func):
-        """Exempt a view function from being checked permission
+        """Exempt a view function from being checked permission.
+        It is useful when you are using white list checking.
+
+        Example::
+
+            @app.route('/everyone/can/access')
+            @rbac.exempt
+            def everyone_can_access():
+                return 'Hello~'
+
+        :param view_func: The view function going to be exempted.
         """
         self.acl.exempt(view_func)
         return view_func
