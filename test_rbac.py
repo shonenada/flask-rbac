@@ -88,6 +88,11 @@ def makeapp(with_factory=False, use_white=False):
     @rbac.deny(roles=['logged_role'], methods=['POST'])
     def f():
         return Response('Hello from /f')
+    
+    @app.route('/g', methods=['GET'])
+    @rbac.exempt
+    def g():
+        return Response('Hello from /g')
 
     return app
 
@@ -188,6 +193,18 @@ class UseWhiteApplicationUnitTests(unittest.TestCase):
 
         current_user = anonymous
         self.assertTrue(self.rbac.has_permission('POST', 'b', special_user))
+
+    def test_exempt(self):
+        global current_user
+
+        current_user = anonymous
+        self.assertEqual(self.client.open('/g').data, 'Hello from /g')
+
+        current_user = special_user
+        self.assertEqual(self.client.open('/g').data, 'Hello from /g')
+
+        current_user = normal_user
+        self.assertEqual(self.client.open('/g').data, 'Hello from /g')
 
 
 class NoWhiteApplicationUnitTests(unittest.TestCase):
