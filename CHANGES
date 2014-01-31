@@ -3,6 +3,12 @@ Flask-RBAC Changelog
 
 (in development)
 
+Release 0.2.0 (Jan 31, 2014)
+----------------------------
+
+- Add `exempt` method.
+
+
 Release 0.1.0 (Jan 27, 2014)
 ----------------------------
 
