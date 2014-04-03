@@ -22,7 +22,7 @@ or you can configuration using factory method::
     def create_app():
         app = Flask(__name__)
 
-        rbac.init_app(rbac)
+        rbac.init_app(app)
 
         return app
 
