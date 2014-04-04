@@ -1,6 +1,7 @@
 import unittest
 
 from flask import Flask, Response, make_response
+from flask.ext.login import current_user as login_user
 
 from flask_rbac import RBAC, UserMixin, RoleMixin
 
@@ -344,3 +345,35 @@ class UserMixInUnitTests(unittest.TestCase):
         self.assertEqual(normal_user_roles, set([logged_role]))
         self.assertEqual(staff_role_user_roles, set([staff_role]))
         self.assertEqual(many_roles_user_roles, set([everyone, logged_role, other_role]))
+
+
+class DecoratorUnitTests(unittest.TestCase):
+
+    def setUp(self):
+        self.rbac = RBAC()
+        
+        @self.rbac.as_role_model
+        class RoleModel(RoleMixin):
+            pass
+
+        @self.rbac.as_user_model
+        class UserModel(UserMixin):
+            pass
+
+        self.rm = RoleModel
+        self.um = UserModel
+
+    def test_as_role_model(self):
+        self.assertTrue(self.rbac._role_model is self.rm)
+
+    def test_as_user_model(self):
+        self.assertTrue(self.rbac._user_model is self.um)
+
+
+class DefaultUserLoaderUnitTests(unittest.TestCase):
+
+    def setUp(self):
+        self.rbac = RBAC()
+
+    def test_default_user_loader(self):
+        self.assertEqual(self.rbac._user_loader(), login_user)
