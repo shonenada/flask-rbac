@@ -24,7 +24,7 @@ Links
 Contributes
 -----------
 
-You can send a pull reueqst on
+You can send a pull request on
 `GitHub <https://github.com/shonenada/flask-rbac/pulls>`_.
 
 

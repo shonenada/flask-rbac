@@ -97,6 +97,16 @@ the Role class to adapt your application, here is an example::
         def get_by_name(name):
             return Role.query.filter_by(name=name).first()
 
+After create role model, you can add your model to Flask-RBAC::
+
+    rbac.set_role_model(Role)
+
+Or use decorator to set role model for Flask-RBAC::
+
+    @rbac.as_role_model
+    class Role(RoleMixin):
+        # codes go here
+
 
 Set User Model
 --------------
@@ -143,12 +153,27 @@ Well, if your application works under SQLAlchemy::
             for role in self.roles:
                 yield role
 
+Same as role model, you should add user model to Flask-RBAC::
+     
+    rbac.set_user_model(User)
+
+Or using decorator::
+
+    @rbac.as_user_model
+    class User(UserMixin):
+        # codes go here
+
 
 Set User Loader
 ---------------
 
 Flask-RBAC need to know who is current user, so it requires you to provide a
-function which tells it who is current user. If you save current user in
+function which tells it who is current user. 
+
+Flask-RBAC will load current user from `Flask-Login`_ if you have install it
+by default.
+
+If you save current user in
 `flask.g`, here is an example for you::
 
     from flask import g, current_app
@@ -164,12 +189,6 @@ function which tells it who is current user. If you save current user in
             return g.current_user
 
     rbac.set_user_loader(get_current_user)
-
-If you are using `Flask-Login`_ you can::
-
-    from flask.ext.login import current_user
-
-    rbac.set_user_loader(lambda *args: current_user)
 
 
 Set Access Rules

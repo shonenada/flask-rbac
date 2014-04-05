@@ -10,6 +10,11 @@ import itertools
 
 from flask import request, abort
 
+try:
+    from flask.ext.login import current_user
+except ImportError:
+    current_user = None
+
 from .model import RoleMixin, UserMixin, anonymous
 
 
@@ -133,7 +138,7 @@ class RBAC(object):
 
         self._role_model = kwargs.get('role_model', RoleMixin)
         self._user_model = kwargs.get('user_model', UserMixin)
-        self._user_loader = kwargs.get('user_loader', None)
+        self._user_loader = kwargs.get('user_loader', lambda: current_user)
         self.permission_failed_hook = kwargs.get('permission_failed_hook')
 
         if app is not None:
@@ -161,6 +166,22 @@ class RBAC(object):
         app.before_first_request(self._setup_acl)
 
         app.before_request(self._authenticate)
+
+    def as_role_model(self, model_cls):
+        """A decorator to set custom model or role.
+
+        :param model_cls: Model of role.
+        """
+        self._role_model = model_cls
+        return model_cls
+
+    def as_user_model(self, model_cls):
+        """A decorator to set custom model or user.
+
+        :param model_cls: Model of user.
+        """
+        self._user_model = model_cls
+        return model_cls
 
     def set_role_model(self, model):
         """Set custom model of role.
