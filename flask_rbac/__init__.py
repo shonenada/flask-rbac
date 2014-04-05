@@ -10,6 +10,11 @@ import itertools
 
 from flask import request, abort
 
+try:
+    from flask.ext.login import current_user
+except ImportError:
+    current_user = None
+
 from .model import RoleMixin, UserMixin, anonymous
 
 
@@ -131,14 +136,9 @@ class RBAC(object):
         self.acl = AccessControlList()
         self.before_acl = {'allow': [], 'deny': []}
 
-        try:
-            from flask.ext.login import current_user
-            self._user_loader = kwargs.get('user_loader', lambda: current_user)
-        except ImportError:
-            self._user_loader = kwargs.get('user_loader', None)
-        
         self._role_model = kwargs.get('role_model', RoleMixin)
         self._user_model = kwargs.get('user_model', UserMixin)
+        self._user_loader = kwargs.get('user_loader', lambda: current_user)
         self.permission_failed_hook = kwargs.get('permission_failed_hook')
 
         if app is not None:
