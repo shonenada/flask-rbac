@@ -332,7 +332,8 @@ class RBAC(object):
         assert self._user_loader, "Please set user loader before authenticate."
 
         current_user = self._user_loader()
-        assert (type(current_user) == self._user_model,
+        if not isinstance(current_user, self._user_model):
+            raise TypeError(
                 "%s is not an instance of %s" %
                 (current_user, self._user_model.__class__))
 
