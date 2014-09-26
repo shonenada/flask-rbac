@@ -241,9 +241,10 @@ class RBAC(object):
         :param endpoint: The application endpoint.
         :param user: user who you need to check. Current user by default.
         """
+        app = self.get_app()
         _user = user or self._user_loader()
         roles = _user.get_roles()
-        view_func = self.app.view_functions[endpoint]
+        view_func = app.view_functions[endpoint]
         return self._check_permission(roles, method, view_func)
 
     def check_perm(self, role, method, callback=None):
