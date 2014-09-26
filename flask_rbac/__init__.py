@@ -8,7 +8,12 @@
 
 import itertools
 
-from flask import request, abort
+from flask import request, abort, _request_ctx_stack
+
+try:
+    from flask import _app_ctx_stack
+except ImportError:
+    _app_ctx_stack = None
 
 try:
     from flask.ext.login import current_user
@@ -19,6 +24,9 @@ from .model import RoleMixin, UserMixin, anonymous
 
 
 __all__ = ['RBAC', 'RoleMixin', 'UserMixin']
+
+
+connection_stack = _app_ctx_stack or _request_ctx_stack
 
 
 class AccessControlList(object):
@@ -143,8 +151,6 @@ class RBAC(object):
 
         if app is not None:
             self.init_app(app)
-        else:
-            self.app = None
 
     def init_app(self, app):
         """Initialize application in Flask-RBAC.
@@ -153,10 +159,9 @@ class RBAC(object):
 
         :param app: Flask object
         """
-        self.app = app
 
         app.config.setdefault('RBAC_USE_WHITE', False)
-        self.use_white = self.app.config['RBAC_USE_WHITE']
+        self.use_white = app.config['RBAC_USE_WHITE']
 
         if not hasattr(app, 'extensions'):
             app.extensions = {}
@@ -325,8 +330,21 @@ class RBAC(object):
         self.acl.exempt(view_func)
         return view_func
 
+    def get_app(self, reference_app=None):
+        """Helper method that implements the logic to look up an application.
+        """
+        if reference_app is not None:
+            return reference_app
+        ctx = connection_stack.top
+        if ctx is not None:
+            return ctx.app
+        raise RuntimeError('application not registered on rbac '
+                           'instance and no application bound '
+                           'to current context')
+
     def _authenticate(self):
-        assert self.app, "Please initialize your application into Flask-RBAC."
+        app = self.get_app()
+        assert app, "Please initialize your application into Flask-RBAC."
         assert self._role_model, "Please set role model before authenticate."
         assert self._user_model, "Please set user model before authenticate."
         assert self._user_loader, "Please set user loader before authenticate."
@@ -338,7 +356,7 @@ class RBAC(object):
                 (current_user, self._user_model.__class__))
 
         endpoint = request.endpoint
-        resource = self.app.view_functions.get(endpoint, None)
+        resource = app.view_functions.get(endpoint, None)
 
         if not resource:
             abort(404)
