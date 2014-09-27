@@ -150,7 +150,10 @@ class RBAC(object):
         self.permission_failed_hook = kwargs.get('permission_failed_hook')
 
         if app is not None:
+            self.app = app
             self.init_app(app)
+        else:
+            self.app = None
 
     def init_app(self, app):
         """Initialize application in Flask-RBAC.
@@ -336,6 +339,8 @@ class RBAC(object):
         """
         if reference_app is not None:
             return reference_app
+        if self.app is not None:
+            return self.app
         ctx = connection_stack.top
         if ctx is not None:
             return ctx.app
