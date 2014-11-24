@@ -7,7 +7,7 @@ Configuration Your Application
 As same as many Flask extensions, you need to configuration your application::
 
     from flask import Flask
-    from flask.ext.flask import RBAC
+    from flask.ext.rbac import RBAC
 
     app = Flask(__name__)
     rbac = RBAC(app)
@@ -15,7 +15,7 @@ As same as many Flask extensions, you need to configuration your application::
 or you can configuration using factory method::
 
     from flask import Flask
-    from flask.ext.flask import RBAC
+    from flask.ext.rbac import RBAC
 
     rbac = RBAC()
 
