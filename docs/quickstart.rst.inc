@@ -185,7 +185,7 @@ If you save current user in
         g.current_user = user
 
     def get_current_user():
-        with curren_app.request_context():
+        with current_app.request_context():
             return g.current_user
 
     rbac.set_user_loader(get_current_user)
