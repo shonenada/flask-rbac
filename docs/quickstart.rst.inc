@@ -145,7 +145,7 @@ Well, if your application works under SQLAlchemy::
         def add_role(self, role):
             self.roles.append(role)
 
-        def add_role(self, roles):
+        def add_roles(self, roles):
             for role in roles:
                 self.add_role(role)
 
