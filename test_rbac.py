@@ -95,6 +95,11 @@ def makeapp(with_factory=False, use_white=False):
     def g():
         return Response('Hello from /g')
 
+    @app.route('/h', methods=['GET'])
+    @rbac.allow(['anonymous'], methods=['GET'], with_children=False)
+    def h():
+        return Response('Hello from /h')
+
     return app
 
 
@@ -194,6 +199,11 @@ class UseWhiteApplicationUnitTests(unittest.TestCase):
 
         current_user = anonymous
         self.assertTrue(self.rbac.has_permission('POST', 'b', special_user))
+
+        current_user = None
+        self.assertTrue(self.rbac.has_permission('GET', 'h'))
+        self.assertEqual(self.client.open('/h').data, 'Hello from /h')
+
 
     def test_exempt(self):
         global current_user

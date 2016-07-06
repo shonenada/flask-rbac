@@ -249,7 +249,10 @@ class RBAC(object):
         """
         app = self.get_app()
         _user = user or self._user_loader()
-        roles = _user.get_roles()
+        if not hasattr(_user, 'get_roles'):
+            roles = [anonymous]
+        else:
+            roles = _user.get_roles()
         view_func = app.view_functions[endpoint]
         return self._check_permission(roles, method, view_func)
 
