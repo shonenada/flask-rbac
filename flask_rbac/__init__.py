@@ -54,7 +54,10 @@ class AccessControlList(object):
                 permission = (r.get_name(), method, resource)
                 if not permission in self._allowed:
                     self._allowed.append(permission)
-        permission = (role.get_name(), method, resource)
+        if role == 'anonymous':
+            permission = (role, method, resource)
+        else:
+            permission = (role.get_name(), method, resource)
         if not permission in self._allowed:
             self._allowed.append(permission)
 
@@ -246,7 +249,10 @@ class RBAC(object):
         """
         app = self.get_app()
         _user = user or self._user_loader()
-        roles = _user.get_roles()
+        if not hasattr(_user, 'get_roles'):
+            roles = [anonymous]
+        else:
+            roles = _user.get_roles()
         view_func = app.view_functions[endpoint]
         return self._check_permission(roles, method, view_func)
 
@@ -356,7 +362,7 @@ class RBAC(object):
         assert self._user_loader, "Please set user loader before authenticate."
 
         current_user = self._user_loader()
-        if not isinstance(current_user, self._user_model):
+        if current_user is not None and not isinstance(current_user, self._user_model):
             raise TypeError(
                 "%s is not an instance of %s" %
                 (current_user, self._user_model.__class__))
@@ -383,9 +389,6 @@ class RBAC(object):
         if self.acl.is_exempt(resource):
             return True
 
-        if not self.acl.seted:
-            self._setup_acl()
-
         _roles = set()
         _methods = set(['*', method])
         _resources = set([None, resource])
@@ -395,6 +398,9 @@ class RBAC(object):
 
         is_allowed = None
         _roles.update(roles)
+
+        if not self.acl.seted:
+            self._setup_acl()
 
         for r, m, res in itertools.product(_roles, _methods, _resources):
             if self.acl.is_denied(r.get_name(), m, res):
@@ -419,6 +425,10 @@ class RBAC(object):
     def _setup_acl(self):
         for rn, method, resource, with_children in self.before_acl['allow']:
             role = self._role_model.get_by_name(rn)
+            if rn == 'anonymous':
+                role = rn
+            else:
+                role = self._role_model.get_by_name(rn)
             self.acl.allow(role, method, resource, with_children)
         for rn, method, resource, with_children in self.before_acl['deny']:
             role = self._role_model.get_by_name(rn)
