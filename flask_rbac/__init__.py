@@ -16,7 +16,7 @@ except ImportError:
     _app_ctx_stack = None
 
 try:
-    from flask.ext.login import current_user
+    from flask_login import current_user
 except ImportError:
     current_user = None
 
@@ -212,7 +212,7 @@ class RBAC(object):
         """Set user loader, which is used to load current user.
         An example::
 
-            from flask.ext.login import current_user
+            from flask_login import current_user
             rbac.set_user_loader(lambda: current_user)
 
         :param loader: Current user function.
