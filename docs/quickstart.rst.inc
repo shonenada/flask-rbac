@@ -7,7 +7,7 @@ Configuration Your Application
 As same as many Flask extensions, you need to configuration your application::
 
     from flask import Flask
-    from flask.ext.rbac import RBAC
+    from flask_rbac import RBAC
 
     app = Flask(__name__)
     rbac = RBAC(app)
@@ -15,7 +15,7 @@ As same as many Flask extensions, you need to configuration your application::
 or you can configuration using factory method::
 
     from flask import Flask
-    from flask.ext.rbac import RBAC
+    from flask_rbac import RBAC
 
     rbac = RBAC()
 
@@ -60,7 +60,7 @@ However, if your application is working under SQLAlchemy,
 and you want to save the roles in database, you need to override
 the Role class to adapt your application, here is an example::
 
-    from flask.ext.rbac import RoleMixin
+    from flask_rbac import RoleMixin
     from your_package.app import db
 
     roles_parents = db.Table(
@@ -114,7 +114,7 @@ Set User Model
 Same as the RoleMixin, UserMixin_ implements some methods for Flask-RBAC,
 You can extend it directly::
 
-    from flask.ext.rbac import UserMixin
+    from flask_rbac import UserMixin
 
     class User(UserMixin):
         pass
@@ -123,7 +123,7 @@ You can extend it directly::
 
 Well, if your application works under SQLAlchemy::
 
-    from flask.ext.rbac import UserMixin
+    from flask_rbac import UserMixin
     from your_package.app import db
 
     users_roles = db.Table(
