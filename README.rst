@@ -1,4 +1,4 @@
-|Build Status| |Coverage Status| |Version Status|
+|Build Status| |Coverage Status| |PyPI Version|
 
 Flask-RBAC
 ==========
@@ -32,5 +32,6 @@ You can send a pull request on
    :target: https://travis-ci.org/shonenada/flask-rbac
 .. |Coverage Status| image:: https://coveralls.io/repos/shonenada/flask-rbac/badge.png?branch=develop
    :target: https://coveralls.io/r/shonenada/flask-rbac
-.. |Version Status| image:: https://pypip.in/v/Flask-RBAC/badge.png
-   :target: https://pypi.python.org/pypi/Flask-RBAC
+.. |PyPI Version| image:: https://img.shields.io/pypi/v/flask-rbac.svg?style=flat
+   :target: https://pypi.python.org/pypi/flask-rbac
+   :alt: PyPI Version
