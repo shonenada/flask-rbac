@@ -1,4 +1,4 @@
-#-*-coding: utf-8
+# -*-coding: utf-8
 """
     flaskext.rbac
     ~~~~~~~~~~~~~
@@ -52,13 +52,13 @@ class AccessControlList(object):
         if with_children:
             for r in role.get_children():
                 permission = (r.get_name(), method, resource)
-                if not permission in self._allowed:
+                if permission not in self._allowed:
                     self._allowed.append(permission)
         if role == 'anonymous':
             permission = (role, method, resource)
         else:
             permission = (role.get_name(), method, resource)
-        if not permission in self._allowed:
+        if permission not in self._allowed:
             self._allowed.append(permission)
 
     def deny(self, role, method, resource, with_children=False):
@@ -73,10 +73,10 @@ class AccessControlList(object):
         if with_children:
             for r in role.get_children():
                 permission = (r.get_name(), method, resource)
-                if not permission in self._denied:
+                if permission not in self._denied:
                     self._denied.append(permission)
         permission = (role.get_name(), method, resource)
-        if not permission in self._denied:
+        if permission not in self._denied:
             self._denied.append(permission)
 
     def exempt(self, view_func):
@@ -84,7 +84,7 @@ class AccessControlList(object):
 
         :param view_func: The view function exempt from checking.
         """
-        if not view_func in self._exempt:
+        if view_func not in self._exempt:
             self._exempt.append(view_func)
 
     def is_allowed(self, role, method, resource):
@@ -362,7 +362,8 @@ class RBAC(object):
         assert self._user_loader, "Please set user loader before authenticate."
 
         current_user = self._user_loader()
-        if current_user is not None and not isinstance(current_user, self._user_model):
+        if (current_user is not None
+                and not isinstance(current_user, self._user_model)):
             raise TypeError(
                 "%s is not an instance of %s" %
                 (current_user, self._user_model.__class__))
@@ -410,9 +411,9 @@ class RBAC(object):
                 is_allowed = True
 
         if self.use_white:
-            permit = (is_allowed == True)
+            permit = (is_allowed is True)
         else:
-            permit = (is_allowed != False)
+            permit = (is_allowed is not False)
 
         return permit
 
@@ -426,7 +427,7 @@ class RBAC(object):
         for rn, method, resource, with_children in self.before_acl['allow']:
             role = self._role_model.get_by_name(rn)
             if rn == 'anonymous':
-                role = rn
+                role = anonymous
             else:
                 role = self._role_model.get_by_name(rn)
             self.acl.allow(role, method, resource, with_children)
