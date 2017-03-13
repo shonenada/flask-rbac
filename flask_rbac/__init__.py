@@ -362,6 +362,11 @@ class RBAC(object):
         assert self._user_loader, "Please set user loader before authenticate."
 
         current_user = self._user_loader()
+
+        # Compatible with flask-login anonymous user
+        if hasattr(current_user, '_get_current_object'):
+            current_user = current_user._get_current_object()
+
         if (current_user is not None
                 and not isinstance(current_user, self._user_model)):
             raise TypeError(
