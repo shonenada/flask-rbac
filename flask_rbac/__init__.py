@@ -16,9 +16,10 @@ except ImportError:
     _app_ctx_stack = None
 
 try:
-    from flask_login import current_user
+    from flask_login import (current_user,
+                             AnonymousUserMixin as anonymous_model)
 except ImportError:
-    current_user = None
+    current_user, anonymous_model = None, None
 
 from .model import RoleMixin, UserMixin, anonymous
 
@@ -368,7 +369,8 @@ class RBAC(object):
             current_user = current_user._get_current_object()
 
         if (current_user is not None
-                and not isinstance(current_user, self._user_model)):
+                and not isinstance(current_user,
+                                   (self._user_model, anonymous_model))):
             raise TypeError(
                 "%s is not an instance of %s" %
                 (current_user, self._user_model.__class__))
