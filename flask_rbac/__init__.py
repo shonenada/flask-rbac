@@ -80,13 +80,13 @@ class AccessControlList(object):
         if permission not in self._denied:
             self._denied.append(permission)
 
-    def exempt(self, view_func):
+    def exempt(self, resource):
         """Exempt a view function from being checked permission
 
-        :param view_func: The view function exempt from checking.
+        :param resource: The view function exempt from checking.
         """
-        if view_func not in self._exempt:
-            self._exempt.append(view_func)
+        if resource not in self._exempt:
+            self._exempt.append(resource)
 
     def is_allowed(self, role, method, resource):
         """Check whether role is allowed to access resource
@@ -106,12 +106,12 @@ class AccessControlList(object):
         """
         return (role, method, resource) in self._denied
 
-    def is_exempt(self, view_func):
-        """Return whether view_func is exempted.
+    def is_exempt(self, resource):
+        """Return whether resource is exempted.
 
-        :param view_func: View function to be checked.
+        :param resource: View function to be checked.
         """
-        return view_func in self._exempt
+        return resource in self._exempt
 
 
 class _RBACState(object):
@@ -174,7 +174,7 @@ class RBAC(object):
             app.extensions = {}
         app.extensions['rbac'] = _RBACState(self, app)
 
-        self.acl.allow(anonymous, 'GET', app.view_functions['static'])
+        self.acl.allow(anonymous, 'GET', 'static')
         app.before_first_request(self._setup_acl)
 
         app.before_request(self._authenticate)
@@ -254,12 +254,11 @@ class RBAC(object):
             roles = [anonymous]
         else:
             roles = _user.get_roles()
-        view_func = app.view_functions[endpoint]
-        return self._check_permission(roles, method, view_func)
+        return self._check_permission(roles, method, endpoint)
 
     def check_perm(self, role, method, callback=None):
         def decorator(view_func):
-            if not self._check_permission([role], method, view_func):
+            if not self._check_permission([role], method, view_func.__name__):
                 if callable(callback):
                     callback()
                 else:
@@ -295,7 +294,7 @@ class RBAC(object):
         """
         def decorator(view_func):
             _methods = [m.upper() for m in methods]
-            for r, m, v in itertools.product(roles, _methods, [view_func]):
+            for r, m, v in itertools.product(roles, _methods, [view_func.__name__]):
                 self.before_acl['allow'].append((r, m, v, with_children))
             return view_func
         return decorator
@@ -320,7 +319,7 @@ class RBAC(object):
         """
         def decorator(view_func):
             _methods = [m.upper() for m in methods]
-            for r, m, v in itertools.product(roles, _methods, [view_func]):
+            for r, m, v in itertools.product(roles, _methods, [view_func.__name__]):
                 self.before_acl['deny'].append((r, m, v, with_children))
             return view_func
         return decorator
@@ -338,7 +337,7 @@ class RBAC(object):
 
         :param view_func: The view function going to be exempted.
         """
-        self.acl.exempt(view_func)
+        self.acl.exempt(view_func.__name__)
         return view_func
 
     def get_app(self, reference_app=None):
@@ -375,8 +374,7 @@ class RBAC(object):
                 "%s is not an instance of %s" %
                 (current_user, self._user_model.__class__))
 
-        endpoint = request.endpoint
-        resource = app.view_functions.get(endpoint, None)
+        resource = request.endpoint
 
         if not resource:
             abort(404)
