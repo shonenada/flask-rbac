@@ -256,20 +256,6 @@ class RBAC(object):
             roles = _user.get_roles()
         return self._check_permission(roles, method, endpoint)
 
-    def check_perm(self, role, method, callback=None):
-        def decorator(view_func):
-            if not self._check_permission([role], method, view_func.__name__):
-                if callable(callback):
-                    callback()
-                else:
-                    self._deny_hook()
-            return view_func
-        return decorator
-
-    def user_loader(self, loader):
-        self._user_loader = loader
-        return loader
-
     def allow(self, roles, methods, with_children=True):
         """This is a decorator function.
 
