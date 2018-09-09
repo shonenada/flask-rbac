@@ -131,7 +131,7 @@ def makeapp(with_factory, use_white, before_decorator, after_decorator):
 class UseWhiteApplicationUnitTests(unittest.TestCase):
 
     def setUp(self):
-        self.app = makeapp(with_factory=False, use_white=False, before_decorator=rewrite_decorator, after_decorator=rewrite_decorator)
+        self.app = makeapp(with_factory=False, use_white=True, before_decorator=rewrite_decorator, after_decorator=rewrite_decorator)
         self.client = self.app.test_client()
         self.rbac = self.app.extensions['rbac'].rbac
 
