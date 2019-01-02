@@ -5,6 +5,8 @@ from flask.ext.login import current_user as login_user
 
 from flask_rbac import RBAC, UserMixin, RoleMixin
 
+import functools
+
 
 class Role(RoleMixin):
     def __repr__(self):
@@ -31,8 +33,13 @@ many_roles_user = User(roles=[logged_role, other_role, everyone])
 
 current_user = anonymous
 
+def rewrite_decorator(viewfunc):
+    @functools.wraps(viewfunc)
+    def newfunc(*args, **kwargs):
+        return viewfunc(*args, **kwargs)
+    return newfunc
 
-def makeapp(with_factory=False, use_white=False):
+def makeapp(with_factory, use_white, before_decorator, after_decorator):
     global current_user
     app = Flask(__name__)
     app.debug = True
@@ -53,50 +60,68 @@ def makeapp(with_factory=False, use_white=False):
     rbac.set_role_model(Role)
 
     @app.route('/')
+    @after_decorator
     @rbac.allow(roles=['everyone'], methods=['GET'])
+    @before_decorator
     def index():
         return Response('index')
 
     @app.route('/a')
+    @after_decorator
     @rbac.allow(roles=['special'], methods=['GET'])
+    @before_decorator
     def a():
         return Response('Hello')
 
     @app.route('/b', methods=['GET', 'POST'])
+    @after_decorator
     @rbac.allow(roles=['logged_role'], methods=['GET'])
     @rbac.allow(roles=['staff_role', 'special'], methods=['POST'])
+    @before_decorator
     def b():
         return Response('Hello from /b')
 
     @app.route('/c')
+    @after_decorator
     @rbac.allow(roles=['everyone'], methods=['GET'])
     @rbac.deny(roles=['logged_role'], methods=['GET'], with_children=False)
     @rbac.allow(roles=['staff_role'], methods=['GET'])
+    @before_decorator
     def c():
         return Response('Hello from /c')
 
     @app.route('/d')
+    @after_decorator
     @rbac.deny(roles=['everyone'], methods=['GET'])
+    @before_decorator
     def d():
         return Response('Hello from /d')
 
     @app.route('/e')
+    @after_decorator
     @rbac.deny(roles=['everyone'], methods=['GET'], with_children=True)
+    @before_decorator
     def e():
         return Response('Hello from /e')
 
     @app.route('/f', methods=['POST'])
+    @after_decorator
     @rbac.deny(roles=['logged_role'], methods=['POST'])
+    @before_decorator
     def f():
         return Response('Hello from /f')
     
     @app.route('/g', methods=['GET'])
+    @after_decorator
     @rbac.exempt
+    @before_decorator
     def g():
         return Response('Hello from /g')
 
     @app.route('/h', methods=['GET'])
+    @after_decorator
     @rbac.allow(['anonymous'], methods=['GET'], with_children=False)
+    @before_decorator
     def h():
         return Response('Hello from /h')
 
@@ -106,7 +131,7 @@ def makeapp(with_factory=False, use_white=False):
 class UseWhiteApplicationUnitTests(unittest.TestCase):
 
     def setUp(self):
-        self.app = makeapp(use_white=True)
+        self.app = makeapp(with_factory=False, use_white=True, before_decorator=rewrite_decorator, after_decorator=rewrite_decorator)
         self.client = self.app.test_client()
         self.rbac = self.app.extensions['rbac'].rbac
 
@@ -221,7 +246,7 @@ class UseWhiteApplicationUnitTests(unittest.TestCase):
 class NoWhiteApplicationUnitTests(unittest.TestCase):
 
     def setUp(self):
-        self.app = makeapp(use_white=False)
+        self.app = makeapp(with_factory=False, use_white=False, before_decorator=rewrite_decorator, after_decorator=rewrite_decorator)
         self.client = self.app.test_client()
         self.rbac = self.app.extensions['rbac'].rbac
 
