@@ -398,7 +398,7 @@ class RBAC(object):
             if self.acl.is_denied(r.get_name(), m, res):
                 return False
 
-            if self.acl.is_allowed(r.get_name(), m, res):
+            if is_allowed != True and self.acl.is_allowed(r.get_name(), m, res):
                 is_allowed = True
 
         if self.use_white:
