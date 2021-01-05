@@ -7,6 +7,7 @@
 """
 
 import itertools
+from collections import defaultdict
 
 from flask import request, abort, _request_ctx_stack
 
@@ -256,7 +257,7 @@ class RBAC(object):
             roles = _user.get_roles()
         return self._check_permission(roles, method, endpoint)
 
-    def allow(self, roles, methods, with_children=True):
+    def allow(self, roles, methods, with_children=True, endpoint=None):
         """This is a decorator function.
 
         You can allow roles to access the view func with it.
@@ -280,12 +281,13 @@ class RBAC(object):
         """
         def decorator(view_func):
             _methods = [m.upper() for m in methods]
-            for r, m, v in itertools.product(roles, _methods, [view_func.__name__]):
+            resource = [endpoint or view_func.__name__]
+            for r, m, v in itertools.product(roles, _methods, resource):
                 self.before_acl['allow'].append((r, m, v, with_children))
             return view_func
         return decorator
 
-    def deny(self, roles, methods, with_children=False):
+    def deny(self, roles, methods, with_children=False, endpoint=None):
         """This is a decorator function.
 
         You can deny roles to access the view func with it.
@@ -305,7 +307,8 @@ class RBAC(object):
         """
         def decorator(view_func):
             _methods = [m.upper() for m in methods]
-            for r, m, v in itertools.product(roles, _methods, [view_func.__name__]):
+            resource = [endpoint or view_func.__name__]
+            for r, m, v in itertools.product(roles, _methods, resource):
                 self.before_acl['deny'].append((r, m, v, with_children))
             return view_func
         return decorator
@@ -361,7 +364,6 @@ class RBAC(object):
                 (current_user, self._user_model.__class__))
 
         resource = request.endpoint
-
         if not resource:
             abort(404)
 
@@ -378,6 +380,7 @@ class RBAC(object):
             return self._deny_hook()
 
     def _check_permission(self, roles, method, resource):
+
         if self.acl.is_exempt(resource):
             return True
 
@@ -400,6 +403,7 @@ class RBAC(object):
 
             if is_allowed != True and self.acl.is_allowed(r.get_name(), m, res):
                 is_allowed = True
+                break
 
         if self.use_white:
             permit = (is_allowed is True)
@@ -422,6 +426,21 @@ class RBAC(object):
             else:
                 role = self._role_model.get_by_name(rn)
             self.acl.allow(role, method, resource, with_children)
+
+        if not self.use_white:
+            to_deny_map = defaultdict(list)
+            all_roles = {x.get_name() if not isinstance(x, str)
+                    else x for x in self._role_model.get_all()}
+
+            for role, method, resource, with_children in self.before_acl['allow']:
+                to_deny_map[(resource, role, with_children)].append(method)
+            for k, methods in to_deny_map.items():
+                v, role, with_children, = k
+                for r in all_roles - {role}:
+                    for m in methods:
+                        if (r, m, v, with_children) not in self.before_acl['allow']:
+                            self.before_acl['deny'].append((r, m, v, with_children))
+
         for rn, method, resource, with_children in self.before_acl['deny']:
             role = self._role_model.get_by_name(rn)
             self.acl.deny(role, method, resource, with_children)

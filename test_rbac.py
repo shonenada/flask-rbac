@@ -1,7 +1,7 @@
 import unittest
 
 from flask import Flask, Response, make_response
-from flask.ext.login import current_user as login_user
+from flask_login import current_user as login_user
 
 from flask_rbac import RBAC, UserMixin, RoleMixin
 
@@ -110,7 +110,7 @@ def makeapp(with_factory, use_white, before_decorator, after_decorator):
     @before_decorator
     def f():
         return Response('Hello from /f')
-    
+
     @app.route('/g', methods=['GET'])
     @after_decorator
     @rbac.exempt
@@ -146,18 +146,18 @@ class UseWhiteApplicationUnitTests(unittest.TestCase):
     def test_allow_get_view(self):
         global current_user
         current_user = anonymous
-        self.assertEqual(self.client.open('/').data, 'index')
+        self.assertEqual(self.client.open('/').data.decode('utf-8'), 'index')
 
         current_user = normal_user
-        self.assertEqual(self.client.open('/').data, 'index')
-        self.assertEqual(self.client.open('/b').data, 'Hello from /b')
+        self.assertEqual(self.client.open('/').data.decode('utf-8'), 'index')
+        self.assertEqual(self.client.open('/b').data.decode('utf-8'), 'Hello from /b')
 
         current_user = staff_role_user
-        self.assertEqual(self.client.open('/').data, 'index')
-        self.assertEqual(self.client.open('/b').data, 'Hello from /b')
+        self.assertEqual(self.client.open('/').data.decode('utf-8'), 'index')
+        self.assertEqual(self.client.open('/b').data.decode('utf-8'), 'Hello from /b')
 
         current_user = special_user
-        self.assertEqual(self.client.open('/a').data, 'Hello')
+        self.assertEqual(self.client.open('/a').data.decode('utf-8'), 'Hello')
 
     def test_deny_get_view(self):
         global current_user
@@ -177,10 +177,10 @@ class UseWhiteApplicationUnitTests(unittest.TestCase):
     def test_allow_post_view(self):
         global current_user
         current_user = staff_role_user
-        self.assertEqual(self.client.post('/b').data, 'Hello from /b')
+        self.assertEqual(self.client.post('/b').data.decode('utf-8'), 'Hello from /b')
 
         current_user = special_user
-        self.assertEqual(self.client.post('/b').data, 'Hello from /b')
+        self.assertEqual(self.client.post('/b').data.decode('utf-8'), 'Hello from /b')
 
     def test_deny_post_view(self):
         global current_user
@@ -193,20 +193,20 @@ class UseWhiteApplicationUnitTests(unittest.TestCase):
     def test_complicate_get_view(self):
         global current_user
         current_user = anonymous
-        self.assertEqual(self.client.open('/c').data, 'Hello from /c')
+        self.assertEqual(self.client.open('/c').data.decode('utf-8'), 'Hello from /c')
 
         current_user = normal_user
         self.assertEqual(self.client.open('/c').status_code, 403)
 
         current_user = staff_role_user
-        self.assertEqual(self.client.open('/c').data, 'Hello from /c')
+        self.assertEqual(self.client.open('/c').data.decode('utf-8'), 'Hello from /c')
 
     def test_hook(self):
         global current_user
         current_user = special_user
         self.rbac.set_hook(lambda: make_response('Permission Denied', 403))
         self.assertEqual(self.client.open('/').status_code, 403)
-        self.assertEqual(self.client.open('/').data, 'Permission Denied')
+        self.assertEqual(self.client.open('/').data.decode('utf-8'), 'Permission Denied')
 
     def test_has_permission(self):
         global current_user
@@ -227,20 +227,20 @@ class UseWhiteApplicationUnitTests(unittest.TestCase):
 
         current_user = None
         self.assertTrue(self.rbac.has_permission('GET', 'h'))
-        self.assertEqual(self.client.open('/h').data, 'Hello from /h')
+        self.assertEqual(self.client.open('/h').data.decode('utf-8'), 'Hello from /h')
 
 
     def test_exempt(self):
         global current_user
 
         current_user = anonymous
-        self.assertEqual(self.client.open('/g').data, 'Hello from /g')
+        self.assertEqual(self.client.open('/g').data.decode('utf-8'), 'Hello from /g')
 
         current_user = special_user
-        self.assertEqual(self.client.open('/g').data, 'Hello from /g')
+        self.assertEqual(self.client.open('/g').data.decode('utf-8'), 'Hello from /g')
 
         current_user = normal_user
-        self.assertEqual(self.client.open('/g').data, 'Hello from /g')
+        self.assertEqual(self.client.open('/g').data.decode('utf-8'), 'Hello from /g')
 
 
 class NoWhiteApplicationUnitTests(unittest.TestCase):
@@ -253,10 +253,10 @@ class NoWhiteApplicationUnitTests(unittest.TestCase):
     def test_allow_get_view(self):
         global current_user
         current_user = normal_user
-        self.assertEqual(self.client.open('/d').data, 'Hello from /d')
+        self.assertEqual(self.client.open('/d').data.decode('utf-8'), 'Hello from /d')
 
         current_user = staff_role_user
-        self.assertEqual(self.client.open('/d').data, 'Hello from /d')
+        self.assertEqual(self.client.open('/d').data.decode('utf-8'), 'Hello from /d')
 
     def test_deny_get_view(self):
         global current_user
@@ -273,10 +273,10 @@ class NoWhiteApplicationUnitTests(unittest.TestCase):
     def test_allow_post_view(self):
         global current_user
         current_user = anonymous
-        self.assertEqual(self.client.post('/f').data, 'Hello from /f')
+        self.assertEqual(self.client.post('/f').data.decode('utf-8'), 'Hello from /f')
 
         current_user = staff_role_user
-        self.assertEqual(self.client.post('/f').data, 'Hello from /f')
+        self.assertEqual(self.client.post('/f').data.decode('utf-8'), 'Hello from /f')
 
     def test_deny_post_view(self):
         global current_user
@@ -386,7 +386,7 @@ class DecoratorUnitTests(unittest.TestCase):
 
     def setUp(self):
         self.rbac = RBAC()
-        
+
         @self.rbac.as_role_model
         class RoleModel(RoleMixin):
             pass
