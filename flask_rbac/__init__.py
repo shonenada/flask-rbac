@@ -401,7 +401,7 @@ class RBAC(object):
             if self.acl.is_denied(r.get_name(), m, res):
                 return False
 
-            if is_allowed != True and self.acl.is_allowed(r.get_name(), m, res):
+            if not is_allowed and self.acl.is_allowed(r.get_name(), m, res):
                 is_allowed = True
                 break
 
@@ -435,11 +435,11 @@ class RBAC(object):
             for role, method, resource, with_children in self.before_acl['allow']:
                 to_deny_map[(resource, role, with_children)].append(method)
             for k, methods in to_deny_map.items():
-                v, role, with_children, = k
-                for r in all_roles - {role}:
-                    for m in methods:
-                        if (r, m, v, with_children) not in self.before_acl['allow']:
-                            self.before_acl['deny'].append((r, m, v, with_children))
+                view, role, with_children, = k
+                for r, m in itertools.product(all_roles - {role}, methods):
+                    rule = (r, m, view, with_children)
+                    if rule not in self.before_acl['allow']:
+                        self.before_acl['deny'].append(rule)
 
         for rn, method, resource, with_children in self.before_acl['deny']:
             role = self._role_model.get_by_name(rn)

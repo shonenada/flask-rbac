@@ -71,6 +71,8 @@ class RoleMixin(object):
 
     @classmethod
     def get_all(cls):
+        """Return all existing roles
+        """
         return cls.roles
 
 

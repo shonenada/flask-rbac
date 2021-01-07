@@ -26,7 +26,6 @@ or you can configuration using factory method::
 
         return app
 
-
 Mode Setting
 ------------
 
@@ -34,10 +33,13 @@ There are two modes for Flask-RBAC, `RBAC_USE_WHITE` decide whether use
 white list to check the permission. And it set `False` to default.
 
 ============================ ================================================
- `RBAC_USE_WHITE = True`     Only allowing rules can access the resources.  
-                             This means, all deny rules and rules           
+ `RBAC_USE_WHITE = True`     Only allowing rules can access the resources.
+                             This means, all deny rules and rules
                              you did not add cannot access the resources.
  `RBAC_USE_WHITE = False`    Only denying rules cannot access the resources.
+                             In case you set an allow rule, denying rules will
+                             also be automatically created for existing
+                             non-added roles in this route.
 ============================ ================================================
 
 Change it using::
@@ -85,7 +87,7 @@ the Role class to adapt your application, here is an example::
             self.name = name
 
         def add_parent(self, parent):
-            # You don't need to add this role to parent's children set, 
+            # You don't need to add this role to parent's children set,
             # relationship between roles would do this work automatically
             self.parents.append(parent)
 
@@ -154,7 +156,7 @@ Well, if your application works under SQLAlchemy::
                 yield role
 
 Same as role model, you should add user model to Flask-RBAC::
-     
+
     rbac.set_user_model(User)
 
 Or using decorator::
@@ -168,7 +170,7 @@ Set User Loader
 ---------------
 
 Flask-RBAC need to know who is current user, so it requires you to provide a
-function which tells it who is current user. 
+function which tells it who is current user.
 
 Flask-RBAC will load current user from `Flask-Login`_ if you have install it
 by default.
@@ -212,10 +214,28 @@ You can use `allow` and `deny` to add rules to Flask-RBAC::
 The code above adding two rules:
 
 - Allows user of *anonymous* role to *GET* /.
+
 - Deny user of *logged_user* role to *GET* and *POST* */account/signin*.
 
+`Flask`_ itself assumes the name of the view function as the endpoint for the
+registered URL rule, that's why in rules validation by default we use the decorated function
+name to check against the endpoint of the input request. But, in case you specified
+a different endpoint or you use the decorators inside a blueprint or
+abstracted blueprints extensions like `Flask-Admin`_ you can directly specify to the decorator
+the endpoint used in your route.
+
+.. code-block:: python
+
+    @app.route('/signin', methods=['GET', 'POST'], endpoint='account.signin')
+    @rbac.deny(['logged_user'], methods=['GET', 'POST'],
+        endpoint='account.signin')
+    def signin():
+        # show sign in page or handle sign in request.
+        pass
 
 
 .. _RoleMixin: api.html#flask-ext-rbac-model-rolemixin
 .. _UserMixin: api.html#flask-ext-rbac-model-usermixin
 .. _Flask-Login: https://flask-login.readthedocs.org/en/latest/
+.. _Flask: https://flask-admin.readthedocs.io/en/latest/introduction/?highlight=endpoint#generating-urls
+.. _Flask-Admin: https://flask-admin.readthedocs.io/en/latest/introduction/?highlight=endpoint#generating-urls
