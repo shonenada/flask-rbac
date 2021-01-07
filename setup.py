@@ -9,7 +9,7 @@ with open(join(CURRENT_DIR, "README.rst")) as long_description_file:
 
 setup(
     name="Flask-RBAC",
-    version="0.3.0",
+    version="0.4.0",
     url="https://github.com/shonenada/flask-rbac",
     author="Yaoda Liu",
     author_email="shonenada@gmail.com",
@@ -26,7 +26,7 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
         "Programming Language :: Python",
-        "Programming Language :: Python :: 2",
+        "Programming Language :: Python :: 3",
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
         "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
