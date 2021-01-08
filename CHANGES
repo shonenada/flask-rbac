@@ -1,7 +1,21 @@
 Flask-RBAC Changelog
 ====================
 
-(in development)
+Release 0.5.0 (Jun 8, 2021)
+---------------------------
+
+- Introduce `endpoint` in `allow` and `deny` methods.
+- Deprecate Python2.x, upgrade to Python3.x
+
+Release 0.4.0 (Dec 8, 2020)
+---------------------------
+
+- Improve performance of `_check_permission`.
+
+Release 0.3.0 (Mar 13, 2017)
+---------------------------
+
+- Fix `AnonymouseUserMixin`
 
 Release 0.2.1 (Apr 4, 2014)
 ---------------------------
