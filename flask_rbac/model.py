@@ -69,6 +69,12 @@ class RoleMixin(object):
         """
         return RoleMixin.roles[name]
 
+    @classmethod
+    def get_all(cls):
+        """Return all existing roles
+        """
+        return cls.roles
+
 
 class UserMixin(object):
     """This provides implementations for the methods that Flask-RBAC wants
