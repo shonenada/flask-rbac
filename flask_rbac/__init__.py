@@ -420,11 +420,12 @@ class RBAC(object):
 
     def _setup_acl(self):
         for rn, method, resource, with_children in self.before_acl['allow']:
-            role = self._role_model.get_by_name(rn)
             if rn == 'anonymous':
                 role = anonymous
             else:
                 role = self._role_model.get_by_name(rn)
+            if not role:
+                continue
             self.acl.allow(role, method, resource, with_children)
 
         if not self.use_white:
