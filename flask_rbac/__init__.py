@@ -433,16 +433,18 @@ class RBAC(object):
             all_roles = {x.get_name() if not isinstance(x, str)
                     else x for x in self._role_model.get_all()}
 
-            for role, method, resource, with_children in self.before_acl['allow']:
-                to_deny_map[(resource, role, with_children)].append(method)
+            for role, method, resource, in self.acl._allowed:
+                to_deny_map[(resource, role, False)].append(method)
             for k, methods in to_deny_map.items():
                 view, role, with_children, = k
                 for r, m in itertools.product(all_roles - {role}, methods):
-                    rule = (r, m, view, with_children)
-                    if rule not in self.before_acl['allow']:
-                        self.before_acl['deny'].append(rule)
+                    rule = (r, m, view)
+                    if rule not in self.acl._allowed:
+                        self.before_acl['deny'].append(rule + (False,))
 
         for rn, method, resource, with_children in self.before_acl['deny']:
             role = self._role_model.get_by_name(rn)
+            if not role:
+                continue
             self.acl.deny(role, method, resource, with_children)
         self.acl.seted = True

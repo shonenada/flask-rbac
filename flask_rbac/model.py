@@ -67,7 +67,7 @@ class RoleMixin(object):
 
         :param name: The name of role.
         """
-        return RoleMixin.roles[name]
+        return RoleMixin.roles.get(name)
 
     @classmethod
     def get_all(cls):

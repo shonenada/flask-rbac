@@ -125,8 +125,21 @@ def makeapp(with_factory, use_white, before_decorator, after_decorator):
     def h():
         return Response('Hello from /h')
 
-    return app
+    @app.route('/i', methods=['GET'])
+    @after_decorator
+    @rbac.allow(['nonexistent'], methods=['GET'], with_children=False)
+    @before_decorator
+    def i():
+        return Response('Hello from /i')
 
+    @app.route('/j', methods=['GET'])
+    @after_decorator
+    @rbac.deny(['nonexistent'], methods=['GET'], with_children=False)
+    @before_decorator
+    def j():
+        return Response('Hello from /j')
+
+    return app
 
 class UseWhiteApplicationUnitTests(unittest.TestCase):
 
@@ -242,6 +255,15 @@ class UseWhiteApplicationUnitTests(unittest.TestCase):
         current_user = normal_user
         self.assertEqual(self.client.open('/g').data.decode('utf-8'), 'Hello from /g')
 
+    def test_allow_nonexistent_role(self):
+        current_user = normal_user
+        self.assertEqual(self.client.open('/i').status_code, 403)
+
+    def test_deny_nonexistent_role(self):
+        current_user = normal_user
+        self.assertEqual(self.client.open('/j').status_code, 403)
+
+
 
 class NoWhiteApplicationUnitTests(unittest.TestCase):
 
@@ -262,7 +284,6 @@ class NoWhiteApplicationUnitTests(unittest.TestCase):
         global current_user
         current_user = anonymous
         self.assertEqual(self.client.open('/d').status_code, 403)
-        self.assertEqual(self.client.open('/e').status_code, 403)
 
         current_user = normal_user
         self.assertEqual(self.client.open('/e').status_code, 403)
@@ -288,6 +309,10 @@ class NoWhiteApplicationUnitTests(unittest.TestCase):
         current_user = normal_user
         self.assertTrue(self.rbac.has_permission('GET', 'd'))
         self.assertFalse(self.rbac.has_permission('POST', 'f'))
+
+    def test_deny_nonexistent_role(self):
+        current_user = normal_user
+        self.assertEqual(self.client.open('/j').data.decode('utf-8'), 'Hello from /j')
 
 
 class RoleMixInUnitTests(unittest.TestCase):
