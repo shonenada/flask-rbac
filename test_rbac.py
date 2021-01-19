@@ -284,6 +284,7 @@ class NoWhiteApplicationUnitTests(unittest.TestCase):
         global current_user
         current_user = anonymous
         self.assertEqual(self.client.open('/d').status_code, 403)
+        self.assertEqual(self.client.open('/e').status_code, 403)
 
         current_user = normal_user
         self.assertEqual(self.client.open('/e').status_code, 403)
