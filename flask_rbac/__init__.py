@@ -398,7 +398,7 @@ class RBAC(object):
             self._setup_acl()
 
         for r, m, res in itertools.product(_roles, _methods, _resources):
-            if self.acl.is_denied(r.get_name(), m, res):
+            if not r or self.acl.is_denied(r.get_name(), m, res):
                 return False
 
             if not is_allowed and self.acl.is_allowed(r.get_name(), m, res):
