@@ -398,7 +398,7 @@ class RBAC(object):
             self._setup_acl()
 
         for r, m, res in itertools.product(_roles, _methods, _resources):
-            if self.acl.is_denied(r.get_name(), m, res):
+            if not r or self.acl.is_denied(r.get_name(), m, res):
                 return False
 
             if not is_allowed and self.acl.is_allowed(r.get_name(), m, res):
@@ -420,11 +420,12 @@ class RBAC(object):
 
     def _setup_acl(self):
         for rn, method, resource, with_children in self.before_acl['allow']:
-            role = self._role_model.get_by_name(rn)
             if rn == 'anonymous':
                 role = anonymous
             else:
                 role = self._role_model.get_by_name(rn)
+            if not role:
+                continue
             self.acl.allow(role, method, resource, with_children)
 
         if not self.use_white:
@@ -432,16 +433,18 @@ class RBAC(object):
             all_roles = {x.get_name() if not isinstance(x, str)
                     else x for x in self._role_model.get_all()}
 
-            for role, method, resource, with_children in self.before_acl['allow']:
-                to_deny_map[(resource, role, with_children)].append(method)
+            for role, method, resource, in self.acl._allowed:
+                to_deny_map[(resource, role, False)].append(method)
             for k, methods in to_deny_map.items():
                 view, role, with_children, = k
                 for r, m in itertools.product(all_roles - {role}, methods):
-                    rule = (r, m, view, with_children)
-                    if rule not in self.before_acl['allow']:
-                        self.before_acl['deny'].append(rule)
+                    rule = (r, m, view)
+                    if rule not in self.acl._allowed:
+                        self.before_acl['deny'].append(rule + (False,))
 
         for rn, method, resource, with_children in self.before_acl['deny']:
             role = self._role_model.get_by_name(rn)
+            if not role:
+                continue
             self.acl.deny(role, method, resource, with_children)
         self.acl.seted = True
