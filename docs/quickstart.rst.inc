@@ -181,7 +181,7 @@ If you save current user in
     from flask import g, current_app
 
     @app.route('/signin', methods=['POST'])
-    @rbac.allow(['anonmous'], methods=['POST'])
+    @rbac.allow(['anonymous'], methods=['POST'])
     def signin():
         # Sign in logic...
         g.current_user = user
