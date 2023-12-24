@@ -1,2 +1,2 @@
-Flask==1.1.2
+Flask==2.2.5
 Flask-Login==0.5.0
