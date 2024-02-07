@@ -178,6 +178,9 @@ class RBAC(object):
 
         app.before_request(self._authenticate)
 
+    def _check_setup_finished(self, f_name: str) -> None:
+        pass
+
     def as_role_model(self, model_cls):
         """A decorator to set custom model or role.
 
@@ -247,7 +250,6 @@ class RBAC(object):
         :param endpoint: The application endpoint.
         :param user: user who you need to check. Current user by default.
         """
-        app = self.get_app()
         _user = user or self._user_loader()
         if not hasattr(_user, 'get_roles'):
             roles = [anonymous]
@@ -282,6 +284,7 @@ class RBAC(object):
             resource = [endpoint or view_func.__name__]
             for r, m, v in itertools.product(roles, _methods, resource):
                 self.before_acl['allow'].append((r, m, v, with_children))
+
             return view_func
         return decorator
 
@@ -308,6 +311,7 @@ class RBAC(object):
             resource = [endpoint or view_func.__name__]
             for r, m, v in itertools.product(roles, _methods, resource):
                 self.before_acl['deny'].append((r, m, v, with_children))
+
             return view_func
         return decorator
 
