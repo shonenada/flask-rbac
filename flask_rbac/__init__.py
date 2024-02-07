@@ -13,11 +13,6 @@ from flask import request, abort, current_app
 from flask.sansio.scaffold import setupmethod
 
 try:
-    from flask import _app_ctx_stack
-except ImportError:
-    _app_ctx_stack = None
-
-try:
     from flask_login import (current_user,
                              AnonymousUserMixin as anonymous_model)
 except ImportError:
