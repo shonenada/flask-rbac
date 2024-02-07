@@ -37,3 +37,4 @@ nosetests.xml
 
 # IDE
 .vscode
+.venv

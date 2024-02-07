@@ -9,12 +9,8 @@
 import itertools
 from collections import defaultdict
 
-from flask import request, abort, _request_ctx_stack
-
-try:
-    from flask import _app_ctx_stack
-except ImportError:
-    _app_ctx_stack = None
+from flask import request, abort, current_app
+from flask.sansio.scaffold import setupmethod
 
 try:
     from flask_login import (current_user,
@@ -26,9 +22,6 @@ from .model import RoleMixin, UserMixin, anonymous
 
 
 __all__ = ['RBAC', 'RoleMixin', 'UserMixin']
-
-
-connection_stack = _app_ctx_stack or _request_ctx_stack
 
 
 class AccessControlList(object):
@@ -176,9 +169,12 @@ class RBAC(object):
         app.extensions['rbac'] = _RBACState(self, app)
 
         self.acl.allow(anonymous, 'GET', 'static')
-        app.before_first_request(self._setup_acl)
+        # app.before_first_request(self._setup_acl) Deprecated
 
         app.before_request(self._authenticate)
+
+    def _check_setup_finished(self, f_name: str) -> None:
+        pass
 
     def as_role_model(self, model_cls):
         """A decorator to set custom model or role.
@@ -249,7 +245,6 @@ class RBAC(object):
         :param endpoint: The application endpoint.
         :param user: user who you need to check. Current user by default.
         """
-        app = self.get_app()
         _user = user or self._user_loader()
         if not hasattr(_user, 'get_roles'):
             roles = [anonymous]
@@ -284,6 +279,7 @@ class RBAC(object):
             resource = [endpoint or view_func.__name__]
             for r, m, v in itertools.product(roles, _methods, resource):
                 self.before_acl['allow'].append((r, m, v, with_children))
+
             return view_func
         return decorator
 
@@ -310,6 +306,7 @@ class RBAC(object):
             resource = [endpoint or view_func.__name__]
             for r, m, v in itertools.product(roles, _methods, resource):
                 self.before_acl['deny'].append((r, m, v, with_children))
+
             return view_func
         return decorator
 
@@ -336,9 +333,8 @@ class RBAC(object):
             return reference_app
         if self.app is not None:
             return self.app
-        ctx = connection_stack.top
-        if ctx is not None:
-            return ctx.app
+        if current_app is not None:
+            return current_app
         raise RuntimeError('application not registered on rbac '
                            'instance and no application bound '
                            'to current context')
@@ -418,6 +414,7 @@ class RBAC(object):
         else:
             abort(403)
 
+    @setupmethod
     def _setup_acl(self):
         for rn, method, resource, with_children in self.before_acl['allow']:
             if rn == 'anonymous':
